@@ -1,0 +1,111 @@
+# Open questions
+
+Decisions raised and deliberately deferred. Recorded so the reasoning survives
+outside chat history. When one is settled, write an ADR in `docs/decisions/`,
+remove it from here, and update `CLAUDE.md` §3.
+
+Status as of 2026-08-12: all three deferred pending environment setup.
+
+---
+
+## Q1 — Ingestion approach
+
+**Question:** How do we detect platform/SRE/infrastructure roles that have stayed
+open 60+ days or been quietly reposted?
+
+**Option A — ATS APIs against a company watchlist** *(recommended)*
+
+Poll public JSON endpoints for a curated list of US companies:
+
+| ATS | Endpoint |
+|---|---|
+| Greenhouse | `boards-api.greenhouse.io/v1/boards/{token}/jobs?content=true` |
+| Lever | `api.lever.co/v0/postings/{company}?mode=json` |
+| Ashby | `api.ashbyhq.com/posting-api/job-board/{name}` |
+
+Also Workable, SmartRecruiters, Recruitee. Companies hiring infrastructure roles
+skew heavily to the first three.
+
+- Structured JSON, no HTML parsing, no rot
+- Public APIs — no ToS conflict
+- Posting dates included
+- Inverts the model: maintain a bounded watchlist of companies rather than
+  crawling the world. The watchlist becomes a core owned asset.
+
+**Option B — broad job-board scraping** (as originally described)
+
+Wider nominal reach, no watchlist to build. But: major boards actively block,
+HTML breaks constantly, dates are often relative or missing, and maintenance
+scales badly for a single operator.
+
+**Assessment:** dates are the product. Option B degrades exactly the field the
+whole business depends on.
+
+---
+
+## Q2 — Pipeline stack
+
+**Recommended: Python + Postgres.**
+
+The workload is HTTP ingestion, fuzzy company matching, scheduling, LLM drafting,
+and report generation — all Python's strengths. Python 3.13 is already installed.
+
+TypeScript's main advantage is sharing types with a frontend, which is worth
+nothing here: per `vision.md`, the client never logs in and no product surface
+gets built before four clients.
+
+---
+
+## Q3 — Database location
+
+Existing Supabase project `Solo's System` (`fyofjbxukmovxvkdzuxf`), Postgres
+17.6, is **paused** and in `ap-northeast-1` (Tokyo). Options: restore in a nearer
+region, restore as-is, or run Postgres locally until the schema stabilises.
+
+Region likely matters little for a batch pipeline, but is far cheaper to change
+before data lands than after.
+
+---
+
+# Risks
+
+## R1 — Apollo credits don't cover the pre-sale motion
+
+200 lead credits, 0 export credits. At 40 contacts per free sample, that funds
+roughly **five prospect samples**, given away before any revenue. The pre-sale
+offer consumes the scarcest resource first.
+
+Needs either a top-up plan or a cheaper contact path for samples, reserving
+Apollo for paying clients.
+
+## R2 — Cold email compliance is unaddressed
+
+Sending to US recipients, in a client's name, from a domain BotLane controls.
+CAN-SPAM requires a valid physical postal address, a working opt-out honoured
+promptly, and non-deceptive headers and subject lines. The "client's name, our
+domain" model needs its sender identity to be accurate rather than misleading.
+
+Decide and write an ADR **before the first send**, not after.
+
+## R3 — Supabase project is paused
+
+`Solo's System` is `INACTIVE` and must be restored before any use. Trivial now,
+disruptive later.
+
+---
+
+# Highest-value unknown to verify
+
+**Do the ATS APIs expose original posting dates?**
+
+`vision.md` states the signal is temporal and cannot be backfilled. That holds
+for *reposts* — you must observe a posting disappear and return. It may **not**
+hold for *age*: Lever exposes `createdAt` and Ashby `publishedAt`, which would
+let "open 60+ days" be computed immediately. Greenhouse exposes `updated_at`,
+which moves, and probably does need accumulated history.
+
+**Unverified — field behaviour has not been checked against live responses.**
+
+This is worth resolving first because it decides whether the first real
+40-company sample is producible this week or only after two months of
+observation — i.e. whether first revenue is days or months away.

@@ -61,6 +61,14 @@ force-pushed, so that commit is preserved.
 ## 3. Unknowns — do not invent
 
 Product scope is now defined — see §1 and [docs/vision.md](docs/vision.md).
+
+Three decisions were raised on 2026-08-12 and **deliberately deferred** until
+environment setup is complete: ingestion approach, pipeline stack, and database
+location. The options, tradeoffs, and recommendations are written up in
+[docs/open-questions.md](docs/open-questions.md), along with three known risks
+(Apollo credit ceiling, cold-email compliance, paused Supabase project). Read
+that before reopening any of them — do not re-derive from scratch.
+
 The following remain genuinely undecided. If a task depends on one, **ask**
 rather than assuming, and update this file once decided:
 

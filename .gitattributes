@@ -1,0 +1,21 @@
+# Normalize all text to LF in the repository and in the working tree.
+# Overrides the global core.autocrlf=true on this Windows machine, which would
+# otherwise check files out as CRLF and break shell scripts and git hooks.
+* text=auto eol=lf
+
+# Windows-only scripts genuinely need CRLF
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+# Never touch binaries
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.woff binary
+*.woff2 binary
+*.pdf binary
+*.zip binary

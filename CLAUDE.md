@@ -122,8 +122,8 @@ connector is available in this Claude Desktop installation — the server appear
 in the registry but exposes no tools. Use `gh` for repos, branches, commits,
 issues, and PRs.
 
-Until PATH refreshes (a Claude Desktop restart), invoke it by full path:
-`"C:\Program Files\GitHub CLI\gh.exe"`
+`gh` is on PATH and authenticated as `botlaneio` (verified 2026-08-12). Token
+scopes: `repo`, `read:org`, `workflow`, `gist`.
 
 **The Linear MCP connector is read/write for issues and projects but cannot
 delete them.** It exposes no `delete_issue`, `delete_project`, `delete_milestone`,

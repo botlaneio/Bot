@@ -12,19 +12,30 @@ Last verified: 2026-08-12.
 
 **BotLane** — greenfield, started 2026-08-12.
 
-**Product purpose: NOT YET DEFINED.** Do not assume one.
+A **done-for-you outbound service for DevOps consultancies**. One operator, run
+from Bangalore, working US hours, serving US clients. Full definition in
+[docs/vision.md](docs/vision.md) — read it before making product assumptions.
 
-A previous iteration existed and was abandoned. Its tracker was reset on
-2026-08-12 and its codebase is not present on this machine. For historical
-reference only — **not a commitment for this repository** — that iteration was
-described as "BotLane AI Operating System — Workflow Platform V1": a visual
-workflow builder (canvas, nodes, edges, selection/overlay/interaction
-frameworks, inspector, execution engine, AI nodes, integrations, natural
-language builder, memory, monitoring, enterprise), built on a pnpm + Turborepo
-monorepo with Next.js 15 and Tailwind v4.
+The short version: find US consultancies' prospects by detecting companies whose
+platform/SRE/infrastructure job postings have stayed open 60+ days or been
+quietly reposted (they tried to hire and failed), identify the owner of that
+problem, and run outbound in the client's name from a separate warmed domain.
+$2k–$4k/month retainers. Near-term goal is three to four of them.
 
-Whether any of that carries forward is an open question. Treat it as prior art
-someone described, not as this project's spec.
+Three facts that constrain nearly every technical decision:
+
+1. **It is a service, not software.** Software exists only to let one person run
+   it. The client never logs in. Do not build product surface.
+2. **The signal is temporal and cannot be backfilled.** "Open 60+ days" and
+   "reposted" require having watched over time. Ingestion is the only component
+   with a hard time dependency — every day it isn't running is signal lost.
+3. **Shared pipeline, isolated tenancy.** Signal detection, enrichment, scoring,
+   drafting, and reporting are shared across clients; sending identity and client
+   data are walled off per client. Build the isolation in from the start.
+
+A previous, unrelated iteration ("Workflow Platform V1", a visual workflow
+builder) was abandoned and its tracker reset on 2026-08-12. It shares nothing
+with the above beyond the name. Do not treat it as prior art.
 
 ## 2. Repository
 
@@ -49,10 +60,10 @@ force-pushed, so that commit is preserved.
 
 ## 3. Unknowns — do not invent
 
-These are genuinely undecided. If a task depends on one, **ask** rather than
-assuming, and update this file once decided:
+Product scope is now defined — see §1 and [docs/vision.md](docs/vision.md).
+The following remain genuinely undecided. If a task depends on one, **ask**
+rather than assuming, and update this file once decided:
 
-- Product scope and vision for the fresh start
 - Technology stack (language, framework, runtime, package manager)
 - Repository shape (single package vs. monorepo; whether `apps/` + `packages/` apply)
 - Architecture
@@ -110,6 +121,30 @@ Until PATH refreshes (a Claude Desktop restart), invoke it by full path:
 delete them.** It exposes no `delete_issue`, `delete_project`, `delete_milestone`,
 or archive tool. Deleting anything in Linear requires the user to do it in the
 Linear web UI.
+
+### External services (verified 2026-08-12)
+
+Both are connected and authenticated as `admin@botlane.io`. Neither is yet used
+by any code.
+
+**Apollo.io** — contact identification and enrichment; also sells domains and
+mailboxes. Current balance is a hard constraint on the pre-sale motion:
+
+| Credit type | Remaining |
+|---|---|
+| Lead | 200 |
+| Direct dial | 160 |
+| AI | 5,000 |
+| **Export** | **0** |
+
+At 40 contacts per pre-sale sample, 200 lead credits funds roughly **five**
+prospect samples before top-up. Budget deliberately; do not spend enrichment
+credits on speculative bulk pulls.
+
+**Supabase** — project `Solo's System` (`fyofjbxukmovxvkdzuxf`), Postgres 17.6,
+region `ap-northeast-1` (Tokyo). **Status: INACTIVE (paused)** — it must be
+restored before use. Region was not chosen for this workload and is worth
+revisiting before any data lands in it.
 
 ## 6. Git workflow
 

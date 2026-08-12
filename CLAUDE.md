@@ -36,11 +36,16 @@ someone described, not as this project's spec.
 | GitHub org | `botlaneio` |
 | Linear workspace | [botlanellc](https://linear.app/botlanellc) |
 
-**Current state: empty.** No application code, no dependency manifest, no build.
-Only `README.md`, `CLAUDE.md`, `.gitignore`, and `docs/decisions/`.
+**Current state: no application code**, no dependency manifest, no build. Only
+`README.md`, `CLAUDE.md`, `.gitignore`, `.gitattributes`, and `docs/decisions/`.
 
-The remote has not been verified to exist — GitHub CLI was not yet authenticated
-at the time of writing, so `origin` is configured but unconfirmed.
+Remote verified 2026-08-12: repository exists, public, `main` is the default
+branch, and the authenticated account (`botlaneio`) has ADMIN permission. Local
+`main` tracks `origin/main` and is in sync.
+
+History begins with GitHub's auto-generated `Initial commit` (7f0ebcc), which
+contained only a stub README. Local work was rebased on top of it rather than
+force-pushed, so that commit is preserved.
 
 ## 3. Unknowns — do not invent
 

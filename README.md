@@ -21,4 +21,6 @@ once the stack is decided and the first application code lands.
 ## Documentation
 
 - [CLAUDE.md](CLAUDE.md) — operating instructions and technical context
-- [docs/decisions/](docs/decisions/) — architecture decision records (ADRs)
+- [docs/vision.md](docs/vision.md) — what BotLane is; the product definition of record
+- [docs/decisions.md](docs/decisions.md) — append-only decision log
+- [docs/open-questions.md](docs/open-questions.md) — deferred decisions and known risks

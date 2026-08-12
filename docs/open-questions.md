@@ -1,8 +1,8 @@
 # Open questions
 
 Decisions raised and deliberately deferred. Recorded so the reasoning survives
-outside chat history. When one is settled, write an ADR in `docs/decisions/`,
-remove it from here, and update `CLAUDE.md` §3.
+outside chat history. When one is settled, add it to
+[decisions.md](decisions.md), remove it from here, and update `CLAUDE.md` §3.
 
 Status as of 2026-08-12: all three deferred pending environment setup.
 

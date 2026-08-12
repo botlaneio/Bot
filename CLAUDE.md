@@ -48,7 +48,7 @@ with the above beyond the name. Do not treat it as prior art.
 | Linear workspace | [botlanellc](https://linear.app/botlanellc) |
 
 **Current state: no application code**, no dependency manifest, no build. Only
-`README.md`, `CLAUDE.md`, `.gitignore`, `.gitattributes`, and `docs/decisions/`.
+`README.md`, `CLAUDE.md`, `.gitignore`, `.gitattributes`, and `docs/`.
 
 Remote verified 2026-08-12: repository exists, public, `main` is the default
 branch, and the authenticated account (`botlaneio`) has ADMIN permission. Local
@@ -115,7 +115,7 @@ tree is ever introduced, since Windows otherwise caps paths at 260 characters.
 | Implementation | This repository | local filesystem |
 | Source control | GitHub `botlaneio/Bot` | **`gh` CLI** |
 | Project management | Linear `botlanellc` | Linear MCP connector |
-| Architecture decisions | `docs/decisions/` | local filesystem |
+| Decisions | `docs/decisions.md` | local filesystem |
 
 **GitHub access is via the `gh` CLI, not an MCP connector.** No GitHub MCP
 connector is available in this Claude Desktop installation — the server appears
@@ -187,7 +187,7 @@ This file is only useful while it is true. Update it when:
 - conventions are agreed,
 - the environment materially changes.
 
-Record significant decisions as ADRs in `docs/decisions/` — see
-[ADR-0001](docs/decisions/0001-record-architecture-decisions.md). The previous
-iteration kept its decision log in the tracker, and lost it when the tracker was
-reset. The repository is the only thing guaranteed to persist.
+Record significant decisions in [docs/decisions.md](docs/decisions.md) — an
+append-only log, a few lines each. The previous iteration kept its decision log
+in the tracker and lost it when the tracker was reset. The repository is the only
+thing guaranteed to persist.

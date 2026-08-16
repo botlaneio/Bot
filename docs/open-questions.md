@@ -10,8 +10,9 @@ Status as of 2026-08-12: all three deferred pending environment setup.
 
 ## Q1 — Ingestion approach
 
-**Question:** How do we detect platform/SRE/infrastructure roles that have stayed
-open 60+ days or been quietly reposted?
+**Question:** How do we detect the five hiring signals in
+[vision.md](vision.md) — open 60+ days, quietly reposted, contract or fractional,
+withdrawn with no hire, and job title drift?
 
 **Option A — ATS APIs against a company watchlist** *(recommended)*
 
@@ -40,6 +41,35 @@ scales badly for a single operator.
 
 **Assessment:** dates are the product. Option B degrades exactly the field the
 whole business depends on.
+
+### Four of the five signals are cheap. One is not.
+
+Noted 2026-08-13. Four are **lifecycle events on a posting identity** — it
+appeared, it is still open, it vanished, it came back, its employment type
+changed. Each is answerable by storing a stable posting ID plus a few fields on
+a schedule and diffing snapshots. No matching, no judgement, no model.
+
+**Job title drift is a different problem.** "Backend engineer (some infra)"
+appearing repeatedly over months is a *semantic* comparison across postings
+where both the posting ID and the wording have changed. It needs fuzzy or
+embedding-based matching plus a similarity threshold somebody has to tune — and
+a threshold means false positives, which on this product means an opening line
+that is wrong. The whole pitch is that the recipient cannot dispute the fact.
+
+Two consequences:
+
+1. **Sequence it last.** It shares a data source with the other four but not a
+   mechanism. Letting it into the first build turns "computable from stored
+   history" into "needs a matching model" before anything has shipped.
+2. **It is company-level, not posting-level.** The claim is *"this company has
+   posted N infra-flavoured backend roles over M months"* — an aggregation
+   across postings, not a property of one. The schema should be able to express
+   that from the start even though the signal ships later, because retrofitting
+   a company-level rollup onto a posting-only store is the expensive kind of
+   change.
+
+This is an engineering inference, not a product decision — the signal itself is
+in scope per `decisions.md`.
 
 ---
 

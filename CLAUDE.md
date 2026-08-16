@@ -4,7 +4,7 @@ Operating instructions and technical context for the BotLane repository.
 Read this before acting. It records what is **verified**; anything not written
 here is not established fact.
 
-Last verified: 2026-08-12.
+Last verified: 2026-08-16 (pricing, §1). Everything else: 2026-08-12.
 
 ---
 
@@ -20,7 +20,13 @@ The short version: find US consultancies' prospects by detecting companies whose
 platform/SRE/infrastructure job postings have stayed open 60+ days or been
 quietly reposted (they tried to hire and failed), identify the owner of that
 problem, and run outbound in the client's name from a separate warmed domain.
-$2k–$4k/month retainers. Near-term goal is three to four of them.
+$4,999 one-time setup, then $2,499/month maintenance. Near-term goal is three to
+four clients.
+
+**This is the only service BotLane sells.** The `/marketplace` automations are a
+separate, much smaller product priced one-time at $29–$399. Service pricing has
+already leaked into the marketplace once and was rendered on all seven listings;
+keep the two apart.
 
 Three facts that constrain nearly every technical decision:
 

@@ -1057,3 +1057,32 @@ new  https://nekribxexmpmpzefcpvn.supabase.co/functions/v1/stripe-webhook
 **Three abandoned projects across the two accounts** are listed in `CLAUDE.md`
 §5. Deleting them is the point of this exercise — leaving them is how this
 happens again.
+
+---
+
+### 2026-08-16 — Webhook is configured and verified end to end
+
+Closes the "not yet working" item on the Edge Function entry above.
+
+**Verified, not assumed:**
+
+| Check | Evidence |
+|---|---|
+| Both secrets loaded | Unsigned POST → `400 Missing Stripe-Signature` (was `not_configured`) |
+| Signature verification running | Forged signature → `400 Invalid signature` |
+| Stripe pointed at the right place | `GetWebhookEndpoints` → `nekribxexmpmpzefcpvn`, `status: enabled` |
+| Correct subscriptions | All 7 events, no extras |
+
+**Reading a failure correctly**, since these look alike and mean opposite things:
+
+- **`400 Invalid signature`** — `STRIPE_WEBHOOK_SECRET` does not match the
+  destination's signing secret. Real misconfiguration.
+- **`500`** — the signature *verified* and the handler then failed. On a
+  dashboard "Send test webhook" this is **expected**: the sample payload carries
+  a synthetic session id, so `listLineItems` finds nothing and the handler
+  throws. A 500 on a test event is evidence the security half works.
+
+**Still not proven:** a real payment has never flowed through. The only honest
+test is buying a $79 product with a real card and refunding it — roughly $2–3 in
+Stripe fees, since there is no test mode through this connector. Until then the
+happy path is verified by construction, not by observation.

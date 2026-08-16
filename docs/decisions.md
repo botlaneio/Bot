@@ -941,3 +941,67 @@ code.
 - Google OAuth needs a Google Cloud project and consent screen configured under
   the operator's account. Supabase Auth needs the provider enabled. Neither is
   done, and neither should be done by an agent.
+
+---
+
+### 2026-08-16 — Stripe webhook as a Supabase Edge Function, not a Next.js app
+
+Deployed as `stripe-webhook` on project `tqfyhgzaxaakaewmwamc`. Source in
+`supabase/functions/stripe-webhook/`.
+
+**Corrects an earlier recommendation.** A Next.js app was proposed for the
+account area; that was reaching for a default rather than reasoning from the
+need. Only two things exist: a UI that reads from Supabase, and a webhook
+endpoint. Edge Functions cover the second, and a Framer code component with the
+Supabase browser client covers the first — the anon key is designed to be public
+and every query still passes the RLS policies. **No second host, no second
+domain, no Next.js.** Revisit only if the account area outgrows one screen.
+
+**Endpoint:** `https://tqfyhgzaxaakaewmwamc.supabase.co/functions/v1/stripe-webhook`
+
+**`verify_jwt` is false, deliberately.** Stripe cannot present a Supabase JWT.
+The function authenticates by verifying the Stripe signature over the raw body,
+which is stronger than a shared bearer token. Do not "fix" this by turning JWT
+verification on — it would simply reject every real event.
+
+**Design decisions:**
+
+- **It allowlists the buyer; it does not create an auth user and does not send
+  email.** Writing the `customers` row *is* the invite — the auth trigger admits
+  any allowlisted address. Creating the user here would mean handling "already
+  registered" on every Stripe retry and forcing one sign-in method on someone
+  who may prefer the other. Sending mail from a payment handler makes a delivery
+  failure look like a payment failure.
+- **Every write is idempotent**, keyed on a Stripe id with `ON CONFLICT DO
+  NOTHING`. Handler errors return **500 so Stripe retries**: losing a paid order
+  is far worse than processing an event twice.
+- **Handles both products.** `checkout.session.completed` for the Marketplace;
+  `invoice.*` for the service, because setup and maintenance are invoiced at net
+  14 rather than checked out.
+- **Unknown customers on invoices are skipped loudly, not invented.** Service
+  clients are onboarded by hand, so a missing row means something is wrong
+  upstream and should be visible.
+
+**Two failure modes found by deploying rather than by reading:**
+
+1. **`new Stripe("")` throws at module load**, and the platform reports that as
+   an opaque `WORKER_ERROR` 500 that names nothing. Config is now read lazily
+   and preflighted in the handler, so a missing secret returns
+   `{"error":"not_configured","detail":"STRIPE_SECRET_KEY is not set..."}`.
+   **Never construct a client at module scope in an Edge Function.**
+2. **`constructEventAsync`, not `constructEvent`.** Deno's WebCrypto is async;
+   the synchronous variant throws. This is the classic Stripe-on-Deno mistake.
+
+**Not yet working — needs the operator, and only the operator:**
+
+- `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET` must be set as Edge Function
+  secrets. These are credentials; an agent should not handle them.
+- The Stripe webhook endpoint must be created and pointed at the URL above,
+  subscribed to: `checkout.session.completed`,
+  `checkout.session.async_payment_succeeded`, `charge.refunded`,
+  `invoice.finalized`, `invoice.paid`, `invoice.payment_failed`,
+  `invoice.voided`.
+
+Until both are done the function returns `not_configured` and **no order is
+recorded for any payment taken.** The seven Marketplace links are live now, so
+that gap is real, not theoretical.

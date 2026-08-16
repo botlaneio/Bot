@@ -31,6 +31,7 @@
 import {
     useCallback,
     useEffect,
+    useId,
     useMemo,
     useState,
     type CSSProperties,
@@ -196,9 +197,25 @@ const label = (t: Theme) => ({
     color: t.muted,
 })
 
-function Panel({ t, children }: { t: Theme; children: ReactNode }) {
+/**
+ * A bento cell. `span` is in sixths of the grid and only applies above the
+ * breakpoint; below it every cell is full width, because a bento layout on a
+ * phone is just a worse stack.
+ */
+function Panel({
+    t,
+    cls,
+    span = 6,
+    children,
+}: {
+    t: Theme
+    cls: string
+    span?: 2 | 3 | 4 | 6
+    children: ReactNode
+}) {
     return (
         <div
+            className={`${cls}-cell span-${span}`}
             style={{
                 display: "flex",
                 flexDirection: "column",
@@ -212,6 +229,62 @@ function Panel({ t, children }: { t: Theme; children: ReactNode }) {
             {children}
         </div>
     )
+}
+
+/** A compact stat. One number, one label, no chrome competing with it. */
+function Tile({
+    t,
+    cls,
+    span = 2,
+    caption,
+    value,
+    sub,
+    accent,
+}: {
+    t: Theme
+    cls: string
+    span?: 2 | 3 | 4 | 6
+    caption: string
+    value: string
+    sub?: string
+    accent?: boolean
+}) {
+    return (
+        <div
+            className={`${cls}-cell span-${span}`}
+            style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: 10,
+                padding: 24,
+                borderRadius: 16,
+                border: `1px solid ${accent ? rgba(t.accent, 0.35) : t.border}`,
+                background: accent ? rgba(t.accent, 0.07) : t.surface,
+            }}
+        >
+            <span style={label(t)}>{caption}</span>
+            <span
+                style={{
+                    fontFamily: DISPLAY,
+                    fontWeight: 500,
+                    fontSize: 26,
+                    lineHeight: "1.15em",
+                    letterSpacing: "-0.03em",
+                    color: accent ? t.accent : t.text,
+                }}
+            >
+                {value}
+            </span>
+            {sub ? <span style={{ ...label(t), textTransform: "none" }}>{sub}</span> : null}
+        </div>
+    )
+}
+
+/** Needed by the accent tile; kept local so the file has no dependencies. */
+function rgba(input: string, alpha: number) {
+    const nums = input.match(/[\d.]+/g)
+    if (nums && nums.length >= 3) return `rgba(${nums[0]}, ${nums[1]}, ${nums[2]}, ${alpha})`
+    return input
 }
 
 function Row({
@@ -248,6 +321,14 @@ function Row({
     )
 }
 
+function engagementLabel(status: string): string {
+    if (status === "sending") return "Running"
+    if (status === "warming") return "Warming"
+    if (status === "setup") return "In setup"
+    if (status === "paused") return "Paused"
+    return "Ended"
+}
+
 /** Fulfilment is the thing a buyer actually wants to know. */
 function statusText(o: Order): string {
     if (o.payment_status === "refunded") return "Refunded"
@@ -257,6 +338,15 @@ function statusText(o: Order): string {
     return "Built to order — we will confirm scope and lead time by email"
 }
 
+/**
+ * Account
+ *
+ * @framerIntrinsicWidth 900
+ * @framerIntrinsicHeight 520
+ *
+ * @framerSupportedLayoutWidth any
+ * @framerSupportedLayoutHeight auto
+ */
 export default function Account(props: {
     supabaseUrl: string
     publishableKey: string
@@ -276,6 +366,7 @@ export default function Account(props: {
     }
     const isStatic = useIsStaticRenderer()
     const api = useApi(props.supabaseUrl, props.publishableKey)
+    const cls = `acct-${useId().replace(/:/g, "")}`
 
     const [token, setToken] = useState<string | null>(null)
     const [booting, setBooting] = useState(true)
@@ -514,8 +605,29 @@ export default function Account(props: {
     }
 
     // --------------------------------------------------------- signed in
+    const delivered = orders.filter((o) => o.fulfilment_status === "delivered").length
+
     return (
         <div style={shell}>
+            <style>{`
+                .${cls} {
+                    display: grid;
+                    grid-template-columns: repeat(6, minmax(0, 1fr));
+                    grid-auto-flow: dense;
+                    gap: 16px;
+                    width: 100%;
+                }
+                /* Below the breakpoint every cell is full width. A bento layout
+                   squeezed onto a phone is just a stack with worse spacing. */
+                .${cls} > .${cls}-cell { grid-column: span 6; }
+                @media (min-width: 760px) {
+                    .${cls} > .${cls}-cell.span-2 { grid-column: span 2; }
+                    .${cls} > .${cls}-cell.span-3 { grid-column: span 3; }
+                    .${cls} > .${cls}-cell.span-4 { grid-column: span 4; }
+                    .${cls} > .${cls}-cell.span-6 { grid-column: span 6; }
+                }
+            `}</style>
+
             <div style={{ display: "flex", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
                 <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                     <span style={label(t)}>Your account</span>
@@ -551,147 +663,145 @@ export default function Account(props: {
                 </button>
             </div>
 
-            {error ? (
-                <p style={{ margin: 0, fontSize: 14, color: t.muted }}>{error}</p>
-            ) : null}
+            {error ? <p style={{ margin: 0, fontSize: 14, color: t.muted }}>{error}</p> : null}
 
-            {engagement ? (
-                <Panel t={t}>
-                    <span style={label(t)}>Outbound infrastructure</span>
-                    <span style={{ fontFamily: DISPLAY, fontSize: 22, color: t.accent }}>
-                        {engagement.status === "sending"
-                            ? "Running"
-                            : engagement.status === "warming"
-                              ? "Warming the sending domain"
-                              : engagement.status === "setup"
-                                ? "In setup"
-                                : engagement.status === "paused"
-                                  ? "Paused"
-                                  : "Ended"}
-                    </span>
-                    {engagement.status_note ? (
+            <div className={cls}>
+                {/* Row one: the three things worth knowing at a glance. Each is
+                    one number or one word, so they read without effort. */}
+                {engagement ? (
+                    <Tile
+                        t={t}
+                        cls={cls}
+                        caption="Status"
+                        value={engagementLabel(engagement.status)}
+                        sub={
+                            engagement.sending_started_at
+                                ? `Sending since ${date(engagement.sending_started_at)}`
+                                : `Started ${date(engagement.started_at)}`
+                        }
+                        accent
+                    />
+                ) : null}
+
+                <Tile
+                    t={t}
+                    cls={cls}
+                    caption="Automations"
+                    value={String(orders.length)}
+                    sub={orders.length ? `${delivered} delivered` : "None yet"}
+                />
+
+                {nextDue ? (
+                    <Tile
+                        t={t}
+                        cls={cls}
+                        caption="Next payment"
+                        value={money(nextDue.amount_cents, nextDue.currency)}
+                        sub={`Due ${date(nextDue.due_at)}`}
+                    />
+                ) : null}
+
+                {/* Row two: the detail behind the tiles. */}
+                {engagement?.status_note ? (
+                    <Panel t={t} cls={cls} span={4}>
+                        <span style={label(t)}>What is happening</span>
                         <p style={{ margin: 0, fontSize: 15, lineHeight: "1.6em", color: t.muted }}>
                             {engagement.status_note}
                         </p>
-                    ) : null}
-                    <Row t={t} left="Started" right={date(engagement.started_at)} />
-                    <Row t={t} left="Sending since" right={date(engagement.sending_started_at)} />
-                </Panel>
-            ) : null}
+                    </Panel>
+                ) : null}
 
-            {nextDue ? (
-                <Panel t={t}>
-                    <span style={label(t)}>Next payment due</span>
-                    <div style={{ display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap" }}>
-                        <span style={{ fontFamily: DISPLAY, fontSize: 30, color: t.text }}>
-                            {money(nextDue.amount_cents, nextDue.currency)}
-                        </span>
-                        <span style={{ ...label(t), textTransform: "none" }}>
-                            due {date(nextDue.due_at)}
-                        </span>
-                    </div>
-                    {nextDue.hosted_invoice_url ? (
-                        <a
-                            href={nextDue.hosted_invoice_url}
-                            target="_blank"
-                            rel="noopener"
-                            style={{ color: t.accent, fontSize: 15, textDecoration: "none" }}
-                        >
-                            View and pay invoice →
-                        </a>
-                    ) : null}
-                </Panel>
-            ) : null}
-
-            <Panel t={t}>
-                <span style={label(t)}>Automations</span>
-                {orders.length === 0 ? (
-                    <p style={{ margin: 0, fontSize: 15, color: t.muted }}>Nothing here yet.</p>
-                ) : (
-                    orders.map((o) => (
-                        <Row
-                            key={o.id}
-                            t={t}
-                            left={o.product_name}
-                            right={money(o.amount_cents, o.currency)}
-                            sub={`${statusText(o)} · bought ${date(o.purchased_at)}`}
-                        />
-                    ))
-                )}
-            </Panel>
-
-            {payments.length > 0 ? (
-                <Panel t={t}>
-                    <span style={label(t)}>Payments</span>
-                    {payments.map((p) => (
-                        <Row
-                            key={p.id}
-                            t={t}
-                            left={p.description || "Payment"}
-                            right={money(p.amount_cents, p.currency)}
-                            sub={
-                                p.hosted_invoice_url ? (
-                                    <a
-                                        href={p.hosted_invoice_url}
-                                        target="_blank"
-                                        rel="noopener"
-                                        style={{ color: t.accent, textDecoration: "none" }}
-                                    >
-                                        {p.status === "paid" ? `Paid ${date(p.paid_at)}` : p.status} · invoice →
-                                    </a>
-                                ) : p.status === "paid" ? (
-                                    `Paid ${date(p.paid_at)}`
-                                ) : (
-                                    p.status
-                                )
-                            }
-                        />
-                    ))}
-                </Panel>
-            ) : null}
-
-            {docs.length > 0 ? (
-                <Panel t={t}>
-                    <span style={label(t)}>Documents</span>
-                    {docs.map((d) => (
-                        <div
-                            key={d.id}
-                            style={{
-                                display: "flex",
-                                justifyContent: "space-between",
-                                alignItems: "center",
-                                gap: 16,
-                                paddingBottom: 14,
-                                borderBottom: `1px solid ${t.border}`,
-                            }}
-                        >
-                            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                                <span style={{ fontSize: 15, color: t.text }}>{d.title}</span>
-                                <span style={{ ...label(t), textTransform: "none" }}>
-                                    {d.kind} · {date(d.created_at)}
-                                </span>
-                            </div>
-                            <button
-                                onClick={() => openDoc(d.storage_path)}
+                {docs.length > 0 ? (
+                    <Panel t={t} cls={cls} span={2}>
+                        <span style={label(t)}>Documents</span>
+                        {docs.map((d) => (
+                            <div
+                                key={d.id}
                                 style={{
-                                    border: `1px solid ${t.border}`,
-                                    background: "transparent",
-                                    color: t.accent,
-                                    borderRadius: 8,
-                                    minHeight: 36,
-                                    padding: "0 14px",
-                                    fontFamily: BODY,
-                                    fontSize: 14,
-                                    cursor: "pointer",
-                                    whiteSpace: "nowrap",
+                                    display: "flex",
+                                    justifyContent: "space-between",
+                                    alignItems: "center",
+                                    gap: 12,
+                                    paddingBottom: 14,
+                                    borderBottom: `1px solid ${t.border}`,
                                 }}
                             >
-                                Open
-                            </button>
-                        </div>
-                    ))}
+                                <div style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 0 }}>
+                                    <span style={{ fontSize: 15, color: t.text }}>{d.title}</span>
+                                    <span style={{ ...label(t), textTransform: "none" }}>
+                                        {d.kind} · {date(d.created_at)}
+                                    </span>
+                                </div>
+                                <button
+                                    onClick={() => openDoc(d.storage_path)}
+                                    style={{
+                                        border: `1px solid ${t.border}`,
+                                        background: "transparent",
+                                        color: t.accent,
+                                        borderRadius: 8,
+                                        minHeight: 36,
+                                        padding: "0 14px",
+                                        fontFamily: BODY,
+                                        fontSize: 14,
+                                        cursor: "pointer",
+                                        whiteSpace: "nowrap",
+                                    }}
+                                >
+                                    Open
+                                </button>
+                            </div>
+                        ))}
+                    </Panel>
+                ) : null}
+
+                {/* Row three: the two lists, side by side above the breakpoint. */}
+                <Panel t={t} cls={cls} span={3}>
+                    <span style={label(t)}>Automations</span>
+                    {orders.length === 0 ? (
+                        <p style={{ margin: 0, fontSize: 15, color: t.muted }}>Nothing here yet.</p>
+                    ) : (
+                        orders.map((o) => (
+                            <Row
+                                key={o.id}
+                                t={t}
+                                left={o.product_name}
+                                right={money(o.amount_cents, o.currency)}
+                                sub={`${statusText(o)} · bought ${date(o.purchased_at)}`}
+                            />
+                        ))
+                    )}
                 </Panel>
-            ) : null}
+
+                {payments.length > 0 ? (
+                    <Panel t={t} cls={cls} span={3}>
+                        <span style={label(t)}>Payments</span>
+                        {payments.map((p) => (
+                            <Row
+                                key={p.id}
+                                t={t}
+                                left={p.description || "Payment"}
+                                right={money(p.amount_cents, p.currency)}
+                                sub={
+                                    p.hosted_invoice_url ? (
+                                        <a
+                                            href={p.hosted_invoice_url}
+                                            target="_blank"
+                                            rel="noopener"
+                                            style={{ color: t.accent, textDecoration: "none" }}
+                                        >
+                                            {p.status === "paid" ? `Paid ${date(p.paid_at)}` : p.status} · invoice
+                                        </a>
+                                    ) : p.status === "paid" ? (
+                                        `Paid ${date(p.paid_at)}`
+                                    ) : (
+                                        p.status
+                                    )
+                                }
+                            />
+                        ))}
+                    </Panel>
+                ) : null}
+            </div>
 
             <p style={{ margin: 0, fontSize: 14, lineHeight: "1.6em", color: t.muted }}>
                 Anything here wrong or missing? Email{" "}

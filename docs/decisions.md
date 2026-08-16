@@ -1248,3 +1248,43 @@ assuming a failed write.
 **Also settled here:** `MobileNav` instance `EfQaekuIX` now has `hideAbove=1000`,
 so the desktop nav takes over at 1000px instead of 1200. The nav needs ~800px,
 so there is headroom.
+
+---
+
+### 2026-08-16 — Do not import `react-dom` in a Framer code file
+
+**It fails silently and takes the whole component with it.** Adding
+`import { createPortal } from "react-dom"` to `MobileNav.tsx` made the component
+render **nothing**: the container mounted at 0×0 containing an empty `<div>`,
+zero scoped elements, zero style tags, and **no console error**. Framer's
+typechecker reports `Cannot find module 'react-dom'`, but only on a later run —
+by which point the published site is already broken.
+
+Only `react` and `framer` are safe to import. `framer-motion` is used elsewhere
+in this project and works.
+
+**Why a portal was wanted in the first place.** The navbar sits inside an
+ancestor carrying `transform: matrix(1,0,0,1,-380,0)`. A transformed ancestor
+becomes the **containing block for `position: fixed` descendants**, so the
+slide-in panel anchored to that div rather than the viewport: measured
+`left: 827` in a 900px viewport, leaving a **73px sliver of the closed panel on
+screen**. No CSS fixes this from inside the subtree.
+
+**The replacement:** the overlay renders inside the component and an effect
+moves the wrapper to `document.body` with `appendChild`. React continues to own
+and update the nodes; they simply live elsewhere in the document. The cleanup
+puts the wrapper back so React unmounts it from the parent it expects.
+
+**Also learned, checking this:**
+
+- **Resizing the browser without reloading gives false readings.** Framer swaps
+  breakpoint variants via SSR classes at load, so a resize leaves the previous
+  variant in the DOM. One probe showed the desktop nav *and* the hamburger
+  simultaneously, which is impossible. **Reload after every resize.**
+- **`Actions` is the container the mobile variant hides.** Placing the new
+  component inside it made it vanish on mobile — the old hamburger worked
+  because it sat outside. It now sits beside `Actions`, not within.
+- The original hamburger was a **separate element** (`data-framer-name="Hamburger"`)
+  from the `MobileMenu` component. Deleting the component left the icon behind,
+  and with three children in a `space-between` row the new trigger landed in the
+  centre rather than at the right edge.

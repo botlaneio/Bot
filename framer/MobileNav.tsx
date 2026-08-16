@@ -19,12 +19,19 @@
 //     fade. Motion is decoration; access to navigation is not.
 //   * Focus moves into the panel on open and returns to the trigger on close.
 //
-// ── WHY THE OVERLAY IS PORTALLED TO document.body ────────────────────────
+// ── WHY THE OVERLAY IS MOVED TO document.body BY HAND ────────────────────
 // The navbar sits inside an ancestor carrying a CSS transform. A transformed
 // ancestor becomes the containing block for `position: fixed` descendants, so
-// the panel anchored to that div rather than to the viewport and left a sliver
-// of itself on screen while closed. No amount of CSS fixes that from inside the
-// subtree; the overlay has to leave it. The trigger stays in the navbar.
+// the panel anchored to that div rather than the viewport and left a sliver of
+// itself on screen while closed. No CSS fixes that from inside the subtree —
+// the overlay has to leave it.
+//
+// The obvious tool is createPortal, but **importing react-dom in a Framer code
+// file makes the whole component render nothing**, with no console error: the
+// container mounts 0x0 and empty. So the overlay is relocated imperatively
+// instead — React still owns and updates the nodes, they simply live somewhere
+// else in the document. The effect moves the wrapper back before unmount so
+// React removes it from the parent it expects.
 //
 // ── FRAMER ───────────────────────────────────────────────────────────────
 // `previewOpen` forces the open state on the canvas so the panel can be
@@ -38,7 +45,6 @@ import {
     useState,
     type CSSProperties,
 } from "react"
-import { createPortal } from "react-dom"
 import { addPropertyControls, ControlType, useIsStaticRenderer } from "framer"
 
 const DISPLAY = '"Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace'
@@ -112,9 +118,6 @@ export default function MobileNav(props: Props) {
     const triggerRef = useRef<HTMLButtonElement | null>(null)
     const scrollY = useRef(0)
     const cls = `mnav-${useId().replace(/:/g, "")}`
-    // document does not exist until after mount, so the portal waits.
-    const [mounted, setMounted] = useState(false)
-    useEffect(() => setMounted(true), [])
 
     // On the canvas the panel is shown so it can be designed; on the published
     // site `previewOpen` is ignored entirely.
@@ -175,13 +178,28 @@ export default function MobileNav(props: Props) {
         else triggerRef.current?.focus?.()
     }, [open, isStatic])
 
+    const overlayRef = useRef<HTMLDivElement | null>(null)
+
+    // Relocate the overlay to <body>, escaping the transformed ancestor.
+    // Cleanup returns it so React unmounts it from the parent it expects.
+    useEffect(() => {
+        if (isStatic || typeof document === "undefined") return
+        const el = overlayRef.current
+        if (!el) return
+        const home = el.parentElement
+        document.body.appendChild(el)
+        return () => {
+            if (home && el.parentElement !== home) home.appendChild(el)
+        }
+    }, [isStatic])
+
     const close = useCallback(() => setOpen(false), [])
 
     const panelWidth = `min(${widthPercent}%, ${maxWidth}px)`
     const slide = reduced ? "none" : `transform 520ms ${EASE}`
 
     const overlay = (
-        <>
+        <div ref={overlayRef}>
         {/* Backdrop. Blurred rather than merely dark, so the page reads as
             still there — the panel is a layer, not a new screen. */}
         <div
@@ -339,7 +357,7 @@ export default function MobileNav(props: Props) {
                 </span>
             ) : null}
         </div>
-        </>
+        </div>
     )
 
 
@@ -407,12 +425,11 @@ export default function MobileNav(props: Props) {
             </button>
 
             {/*
-                Portalled so the overlay escapes the transformed ancestor.
-                On the Framer canvas there is no body to portal into that
-                behaves usefully, so it renders inline there instead —
-                positioning is approximate on canvas and exact when published.
+                Rendered here, then moved to <body> by the effect above. On the
+                Framer canvas it stays put, so positioning is approximate on
+                canvas and exact when published.
             */}
-            {isStatic ? overlay : mounted ? createPortal(overlay, document.body) : null}
+            {overlay}
         </>
     )
 }

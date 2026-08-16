@@ -765,3 +765,114 @@ download of workflow files, and any use of the Verified mark.
   arose", which is now ambiguous for both the $4,999 setup fee and a one-off
   marketplace purchase.
 - §12 governing law is still `[PROPOSED, NOT CONFIRMED]`.
+
+---
+
+### 2026-08-16 — Reversed: there is now a customer account area, invite-only
+
+The 2026-08-12 entry ruled out client-facing surface, and `/terms` §2 told
+customers there is "no login, no dashboard." **That is reversed.** A read-only
+customer account area is now in scope, and the record is corrected rather than
+left to contradict what gets built.
+
+**What changed to justify it.** The Marketplace made this a two-product company.
+Marketplace buyers can pay today and there is **no mechanism to deliver anything
+to them** — no file, no documentation, no order history. That is a live defect,
+not a hypothetical. Four service clients could always be served by email; an
+unbounded number of Marketplace buyers cannot.
+
+**Invite-only, and that is the whole point.** There is no public signup. Access
+is granted by the operator:
+
+- **Marketplace buyers — automatic.** A Stripe webhook on
+  `checkout.session.completed` invites the email Stripe captured at checkout.
+  (`customer_creation: "always"` is already set on every payment link, so the
+  email is always there.)
+- **Service clients — by hand.** There will be at most four, ever. Automating
+  that would be building a feature for a spreadsheet-sized problem.
+
+This preserves what the original decision was actually protecting. That rule was
+never "customers must not see a screen" — it was **do not build self-serve
+product surface**: no signup funnel, no onboarding, no configuration, nothing to
+learn. An invite-only read-only account area is a deliverable, like the weekly
+report. `vision.md` is amended in both places it made the claim.
+
+**No passwords.** Access is **Google OAuth or a magic link**, gated on an
+allowlist. Nothing is emailed to a customer that functions as a credential.
+Sending passwords by email puts a permanent secret in two mailboxes, makes
+resets and rotation the operator's problem, and turns a compromised mailbox into
+a compromised account. Magic link is primary and Google is the convenience
+option, because Google Workspace is common at these firms but not universal and
+access must not depend on a customer's email provider.
+
+**Rules out:** public signup, self-serve plan changes, any settings screen, and
+any customer-editable state. The account area is **read-only**. If a customer
+needs something changed, they email — that is the product.
+
+---
+
+### 2026-08-16 — Service billing moves into Stripe, still invoiced at net 14
+
+The $4,999 setup and $2,499/month maintenance are now Stripe products, so the
+account area has a real source for payments and next-due dates. Previously they
+existed only as manual invoices and were queryable from nowhere.
+
+| Product | Price | Product ID | Price ID |
+|---|---|---|---|
+| Outbound Infrastructure — Setup | $4,999 one-time | `prod_V5Fz8abbkTn2MB` | `price_1U55TuI9ZXWhlDEDTyBslycE` |
+| Outbound Infrastructure — Maintenance | $2,499/mo recurring | `prod_V5G0Ix2eqUPCDv` | `price_1U55U1I9ZXWhlDEDOB16iNTk` |
+| Outbound Infrastructure — Setup + First Quarter | $11,246 one-time | `prod_V5G0SGwlipe3hO` | `price_1U55U8I9ZXWhlDEDeS379AjM` |
+
+**No payment links on any of these, deliberately.** A $4,999 engagement is
+invoiced to a named client after a conversation. Public buy URLs are for the
+Marketplace; the service is not self-serve and must not look like it is.
+
+**Stripe does not mean card-on-file.** Subscriptions are created with
+`collection_method: send_invoice` and `days_until_due: 14`, so Stripe issues the
+invoice and the client pays it. **`/terms` §4 therefore needs no change** — the
+mechanism moved, the deal did not.
+
+This is load-bearing. The 2026-08-13 payment-terms entry chose net 14 precisely
+because "the client is a services firm being asked to pay before results exist,
+and on-receipt terms read as distrust at exactly the moment trust is being
+established." Auto-charging a card on the 1st would have discarded that
+reasoning silently. All three products carry `metadata.billing = invoice-net-14`
+so the intent travels on the object.
+
+**Subscription start date:** the maintenance subscription is anchored to when
+**sending begins**, not when the setup invoice is paid. Warm-up takes weeks, and
+`/terms` §4 already says the first maintenance invoice is issued when sending
+starts. Do not let Stripe default the billing anchor to the creation date.
+
+---
+
+### 2026-08-16 — Database is a new Supabase project in `us-east-1`
+
+**Settles Q3**, open since 2026-08-12. New project **`BotLane`**
+(`tqfyhgzaxaakaewmwamc`), region `us-east-1`, free tier at $0/month.
+
+**A new project rather than restoring the old one.** `Solo's System`
+(`fyofjbxukmovxvkdzuxf`) sits in `ap-northeast-1` (Tokyo), paused, and has never
+held data. **Supabase cannot move a project between regions** — the only way to
+change region is to create a new project. Doing that now costs nothing because
+there is nothing to migrate. Doing it after the account area has customers in it
+is a migration with downtime. The old project is abandoned, not restored.
+
+**Why `us-east-1` and not somewhere closer to the operator.** The customers are
+US and the account area is the thing they touch; the operator is in Bangalore and
+touches admin tooling. Given the choice, put the latency on the person who can
+wait. A customer bouncing off a slow dashboard is not recoverable; the operator
+waiting 200ms on an admin query is not a cost.
+
+Q3's original framing assumed the only workload was a batch pipeline, where
+region barely matters. The account area changed that — it is interactive and
+customer-facing, which is what makes the region a real decision rather than a
+coin toss.
+
+**Also closes R3** ("Supabase project is paused"), which no longer describes
+anything. Both are removed from `open-questions.md` per that file's convention.
+
+**Still open:** Q1 (ingestion approach) and Q2 (pipeline stack). Note this
+decision does **not** settle Q2 — choosing Postgres-on-Supabase for the account
+area does not choose the language or framework for the ingestion pipeline, and
+should not be read as having done so.

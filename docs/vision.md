@@ -133,7 +133,10 @@ Proof before payment, instead of case studies that don't exist yet.
 - **Not a guaranteed number of meetings.** Anyone promising that is pricing their
   uncertainty into the invoice.
 - **Not a list you buy once.**
-- **Not software the client has to learn and operate.** The client never logs in.
+- **Not software the client has to learn and operate.** Customers get a private
+  account area — invite-only, showing what they have paid, what is running and
+  their documents — but there is nothing to configure and nothing to operate.
+  Revised 2026-08-16; see `decisions.md`.
 - **Not an agency.** It is one named person, stated openly, because a solo
   operator who answers directly beats an anonymous team on the things this buyer
   actually cares about.
@@ -149,8 +152,15 @@ that repetition is the specification for a product. **Not before.**
 
 > **Engineering consequence:** build for a shared pipeline with per-client
 > isolation at the sending and data layer from the start, because retrofitting
-> tenancy is expensive. But do **not** build product surface — no client-facing
-> app, no self-serve, no configuration UI. The operator is the only user.
+> tenancy is expensive. But do **not** build product surface — no self-serve
+> signup, no configuration UI, nothing a customer has to learn.
+>
+> **Revised 2026-08-16.** There is now one client-facing surface: an
+> **invite-only account area**, read-only, reachable only by customers the
+> operator has admitted. It exists because the Marketplace created a delivery
+> problem the operator cannot solve by hand at volume. It is a deliverable, not
+> a product: no signup funnel, no settings, nothing to operate. The line this
+> rule protects is *self-serve surface*, and that line still holds.
 
 ## Near-term goal
 

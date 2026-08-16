@@ -4,7 +4,8 @@ Decisions raised and deliberately deferred. Recorded so the reasoning survives
 outside chat history. When one is settled, add it to
 [decisions.md](decisions.md), remove it from here, and update `CLAUDE.md` §3.
 
-Status as of 2026-08-12: all three deferred pending environment setup.
+Status: Q1 and Q2 remain open. **Q3 was settled 2026-08-16** — see
+`decisions.md`.
 
 ---
 
@@ -86,17 +87,6 @@ gets built before four clients.
 
 ---
 
-## Q3 — Database location
-
-Existing Supabase project `Solo's System` (`fyofjbxukmovxvkdzuxf`), Postgres
-17.6, is **paused** and in `ap-northeast-1` (Tokyo). Options: restore in a nearer
-region, restore as-is, or run Postgres locally until the schema stabilises.
-
-Region likely matters little for a batch pipeline, but is far cheaper to change
-before data lands than after.
-
----
-
 # Risks
 
 ## R1 — Apollo credits don't cover the pre-sale motion
@@ -116,11 +106,6 @@ promptly, and non-deceptive headers and subject lines. The "client's name, our
 domain" model needs its sender identity to be accurate rather than misleading.
 
 Decide and write an ADR **before the first send**, not after.
-
-## R3 — Supabase project is paused
-
-`Solo's System` is `INACTIVE` and must be restored before any use. Trivial now,
-disruptive later.
 
 ---
 

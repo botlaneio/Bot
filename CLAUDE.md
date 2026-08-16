@@ -31,7 +31,10 @@ keep the two apart.
 Three facts that constrain nearly every technical decision:
 
 1. **It is a service, not software.** Software exists only to let one person run
-   it. The client never logs in. Do not build product surface.
+   it. Do not build self-serve product surface. **Revised 2026-08-16:** there is
+   one exception — an invite-only, read-only customer account area. Access is
+   granted by the operator (automatically on Marketplace purchase, by hand for
+   service clients). No public signup, no settings, nothing to configure.
 2. **The signal is temporal and cannot be backfilled.** "Open 60+ days" and
    "reposted" require having watched over time. Ingestion is the only component
    with a hard time dependency — every day it isn't running is signal lost.
@@ -155,10 +158,14 @@ At 40 contacts per pre-sale sample, 200 lead credits funds roughly **five**
 prospect samples before top-up. Budget deliberately; do not spend enrichment
 credits on speculative bulk pulls.
 
-**Supabase** — project `Solo's System` (`fyofjbxukmovxvkdzuxf`), Postgres 17.6,
-region `ap-northeast-1` (Tokyo). **Status: INACTIVE (paused)** — it must be
-restored before use. Region was not chosen for this workload and is worth
-revisiting before any data lands in it.
+**Supabase** — project **`BotLane`** (`tqfyhgzaxaakaewmwamc`), region
+**`us-east-1`**, status `ACTIVE_HEALTHY`, created 2026-08-16. Free tier, $0/mo.
+This is the project to use.
+
+An older project `Solo's System` (`fyofjbxukmovxvkdzuxf`) still exists in
+`ap-northeast-1` (Tokyo), `INACTIVE`, and never held data. It is **abandoned** —
+Supabase cannot move a project between regions, so a new one was created rather
+than restoring it. Do not use it; delete it when convenient.
 
 ## 6. Git workflow
 

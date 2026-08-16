@@ -1086,3 +1086,55 @@ Closes the "not yet working" item on the Edge Function entry above.
 test is buying a $79 product with a real card and refunding it — roughly $2–3 in
 Stripe fees, since there is no test mode through this connector. Until then the
 happy path is verified by construction, not by observation.
+
+---
+
+### 2026-08-16 — Account area built as a Framer code component, magic link first
+
+`framer/Account.tsx` — committed here, and intended to run as a Framer code
+file. **Framer is the runtime; this repo copy exists so security-relevant code
+is reviewable and versioned.** Change one, change both. That duplication is a
+real cost, accepted because a screen rendering customer data should not live
+only inside a design tool.
+
+**Plain `fetch`, no Supabase SDK.** Framer code files cannot import each other
+and CDN imports are an unknown here. Supabase is just HTTP — PostgREST for
+queries, GoTrue for auth, one signing endpoint for storage — so `fetch` removes
+the dependency question at the cost of a little more code.
+
+**The publishable key is in the component, and that is correct.** It grants
+nothing alone: every request is evaluated by RLS. A signed-in customer reads
+their own rows and nobody else's, and cannot write at all. This is the payoff
+for putting tenancy in the database rather than in application code.
+
+**No sign-up exists.** The form only *requests* a link. Whether an account can
+exist is decided by the database trigger against the `customers` allowlist,
+which the Stripe webhook populates on purchase.
+
+**Details worth keeping:**
+
+- Magic-link tokens arrive in the URL fragment and are **stripped from the
+  address bar** immediately via `history.replaceState`, so they are not
+  bookmarked, shared or leaked in a referrer.
+- Only the refresh token is persisted, in `localStorage`; access tokens stay in
+  memory.
+- Queries carry **no customer filter**. RLS scopes them, and a filter written
+  here could not be trusted anyway.
+- Documents are served by **short-lived signed URLs** (120s), never public ones.
+- `useIsStaticRenderer` keeps auth from running on the Framer canvas.
+- The invite-gate rejection surfaces from GoTrue as a generic database error, so
+  the specific cause cannot be shown. The copy says the likely thing plainly
+  rather than showing a stack trace.
+
+**Not done, and each blocks a working sign-in:**
+
+1. **Supabase Auth → URL Configuration.** Site URL and Redirect URLs must
+   include the published account page. Without it the magic link refuses to
+   return and sign-in fails silently. Most likely thing to be wrong.
+2. **Custom SMTP.** Supabase's built-in auth email is rate-limited to a handful
+   per hour and is explicitly not for production. Magic link *is* the login, so
+   without SMTP (Resend, Postmark, SES) the front door stops working under any
+   real traffic. This is a hard dependency, not a nicety.
+3. The Framer code file and an `/account` page do not exist yet — the plugin was
+   disconnected when this was written.
+4. Google OAuth deferred, as agreed. Magic link works without it.

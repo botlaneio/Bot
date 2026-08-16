@@ -1005,3 +1005,55 @@ verification on — it would simply reject every real event.
 Until both are done the function returns `not_configured` and **no order is
 recorded for any payment taken.** The seven Marketplace links are live now, so
 that gap is real, not theoretical.
+
+---
+
+### 2026-08-16 — Rebuilt on the `botlaneio` Supabase account; there were two
+
+**Supersedes the project ref in the earlier `us-east-1` entry.** The database and
+Edge Function now live in project **`BotLane` (`nekribxexmpmpzefcpvn`)**,
+`us-east-1`, org `sbeeayorpmyiybkyrqtv` — the **`botlaneio`** account.
+
+**What went wrong.** There were two Supabase accounts, and nothing made that
+visible. The Claude connector was authenticated to a personal account; the
+`supabase` CLI was logged into the `botlaneio` account; the browser was on one
+of them. Setting the Edge Function secrets failed with "your account does not
+have the necessary privileges" — not a permissions bug but two different
+accounts entirely, with no project in common.
+
+It also explains an earlier dead end: the Supabase settings page could not be
+found because, in the browser's account, **that project did not exist**.
+
+**Why rebuild rather than reconnect.** Reconnecting the connector to the personal
+account would have worked in about a minute. Rebuilding took ten and removed the
+cause. It was cheap for exactly the reasons the Tokyo→`us-east-1` move was cheap:
+the database held **zero rows**, and all three migrations plus the Edge Function
+were committed. The same argument will not be available later.
+
+**How to tell which account you are in** — the check that would have saved the
+time:
+
+```
+npx supabase projects list          # what the CLI can see
+list_projects (Claude connector)    # what the connector can see
+```
+
+If those two disagree, stop and fix it before doing anything else.
+
+**Verified on the new project**, same three guarantees, same method:
+
+- Tenant isolation — as customer A: 1 own order, **0** of customer B's
+- Invite gate — uninvited `auth.users` insert refused with `42501`
+- Security advisors — **zero** findings
+- Edge Function deployed with a byte-identical `ezbr_sha256` to the old one
+
+**Endpoint changed.** The Stripe destination must be repointed:
+
+```
+old  https://tqfyhgzaxaakaewmwamc.supabase.co/functions/v1/stripe-webhook
+new  https://nekribxexmpmpzefcpvn.supabase.co/functions/v1/stripe-webhook
+```
+
+**Three abandoned projects across the two accounts** are listed in `CLAUDE.md`
+§5. Deleting them is the point of this exercise — leaving them is how this
+happens again.

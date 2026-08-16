@@ -158,14 +158,24 @@ At 40 contacts per pre-sale sample, 200 lead credits funds roughly **five**
 prospect samples before top-up. Budget deliberately; do not spend enrichment
 credits on speculative bulk pulls.
 
-**Supabase** — project **`BotLane`** (`tqfyhgzaxaakaewmwamc`), region
-**`us-east-1`**, status `ACTIVE_HEALTHY`, created 2026-08-16. Free tier, $0/mo.
-This is the project to use.
+**Supabase** — project **`BotLane`** (`nekribxexmpmpzefcpvn`), region
+**`us-east-1`**, org `sbeeayorpmyiybkyrqtv`. Free tier, $0/mo.
+**This is the only project to use.**
 
-An older project `Solo's System` (`fyofjbxukmovxvkdzuxf`) still exists in
-`ap-northeast-1` (Tokyo), `INACTIVE`, and never held data. It is **abandoned** —
-Supabase cannot move a project between regions, so a new one was created rather
-than restoring it. Do not use it; delete it when convenient.
+> **There are two Supabase accounts, and this has already cost hours.** The
+> project above lives on the **`botlaneio`** account — the same identity as the
+> GitHub org and `admin@botlane.io`. A second, personal account holds two dead
+> projects. Before touching Supabase, check which account the dashboard, the
+> CLI (`npx supabase projects list`) and the Claude connector are each pointing
+> at. They can and did disagree.
+
+Abandoned, safe to delete, **do not use**:
+
+| Project | Ref | Account | Why dead |
+|---|---|---|---|
+| `Solo's System` | `fyofjbxukmovxvkdzuxf` | personal | Tokyo region, never held data |
+| `BotLane` (first attempt) | `tqfyhgzaxaakaewmwamc` | personal | Correct schema, wrong account |
+| `botlaneio's Project` | `btjusdaleigmnvpvdxgj` | botlaneio | Singapore region, unused |
 
 ## 6. Git workflow
 

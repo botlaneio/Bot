@@ -285,18 +285,30 @@ Deno.serve(async (req: Request) => {
     // Preflight the configuration before anything else. Without this, a missing
     // secret surfaces inside the signature check below and gets reported as
     // "Invalid signature" — which sends you looking in exactly the wrong place.
-    try {
-        requireEnv("STRIPE_SECRET_KEY");
-        requireEnv("STRIPE_WEBHOOK_SECRET");
-        requireEnv("SUPABASE_URL");
-        requireEnv("SUPABASE_SERVICE_ROLE_KEY");
-    } catch (err) {
-        const detail = err instanceof Error ? err.message : String(err);
-        console.error("not configured:", detail);
-        return new Response(JSON.stringify({ error: "not_configured", detail }), {
-            status: 500,
-            headers: { "Content-Type": "application/json" },
-        });
+    const required = [
+        "STRIPE_SECRET_KEY",
+        "STRIPE_WEBHOOK_SECRET",
+        "SUPABASE_URL",
+        "SUPABASE_SERVICE_ROLE_KEY",
+    ];
+    const missing = required.filter((n) => !Deno.env.get(n));
+    if (missing.length > 0) {
+        // Report every missing name at once, and echo back the NAMES (never the
+        // values) of any Stripe-ish variables that are present. A trailing
+        // space or wrong case is invisible in a dashboard and obvious here;
+        // quoting makes stray whitespace visible.
+        const present = Object.keys(Deno.env.toObject())
+            .filter((k) => /stripe/i.test(k))
+            .map((k) => JSON.stringify(k));
+        console.error(`not configured. missing: ${missing.join(", ")} | stripe-ish present: ${present.join(", ") || "none"}`);
+        return new Response(
+            JSON.stringify({
+                error: "not_configured",
+                missing,
+                stripe_names_present: present,
+            }),
+            { status: 500, headers: { "Content-Type": "application/json" } },
+        );
     }
 
     const signature = req.headers.get("Stripe-Signature");

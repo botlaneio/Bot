@@ -1138,3 +1138,71 @@ which the Stripe webhook populates on purchase.
 3. The Framer code file and an `/account` page do not exist yet — the plugin was
    disconnected when this was written.
 4. Google OAuth deferred, as agreed. Magic link works without it.
+
+---
+
+### 2026-08-16 — Navigation: why the hamburger shows on a laptop, and the slide-in panel
+
+**The desktop navbar was never broken.** At 1440px it renders correctly: five
+links inline plus the CTA, no hamburger. Verified against the published site.
+
+**The breakpoints are the problem.** This Framer project uses:
+
+| Variant | Range |
+|---|---|
+| Desktop | **≥ 1200px** |
+| Tablet | 810–1199px |
+| Phone | ≤ 809px |
+
+1200px is a high bar. A non-maximised window, or Windows display scaling at
+125%, puts a normal laptop under it — a 1440-wide window at 125% reports 1152
+CSS px. So the hamburger appears on machines that are obviously "desktop",
+which is what made this look like a bug.
+
+**Measured at 1440px, the desktop nav needs about 800px:**
+
+```
+Features 77 · How It Works 115 · FAQ 29 · Pricing 67 · Marketplace 106 · CTA 131
+= 525px of content, ~800px with the wordmark and gaps
+```
+
+So **1000px is a safe threshold** and 1200 is far more conservative than the
+content requires. Diagnose by width before assuming breakage: `window.innerWidth`
+in the console settles it in one step.
+
+**Two Framer facts learned here, both worth knowing before the next nav change:**
+
+1. **`NavBar` has variants, and `MobileLight` is a replica.** It inherits its
+   children from the primary variant. Editing the primary propagates to both,
+   which is the *good* path. Framer itself warns against editing a replica.
+2. **A replica's children cannot be enumerated over MCP.** `getNodeXml` on the
+   replica, on its inner Stack, and `getSelectedNodesXml` all return the
+   container with no children. So any element that exists *only* in the mobile
+   variant — such as the original hamburger — is invisible to an agent and can
+   only be removed by hand, or by the operator selecting it first.
+
+**The replacement is a code component, not a design edit.** `MobileNav.tsx`
+(`UTiD6vM`, committed at `framer/MobileNav.tsx`) renders a panel from the right
+at 75% width, capped at 420px, over a blurred backdrop. A menu covering the
+whole screen reads as a page change; three quarters reads as a dismissable
+layer, which is what a nav is.
+
+Chosen as code because the variant mechanics above make design-node edits
+unreliable, and because the behaviour that matters is not expressible in the
+design tool: Escape and backdrop close, following a link closes so the back
+button does not land on an open menu, body scroll locks and restores its exact
+position rather than jumping to the top, focus moves in and returns to the
+trigger, and `prefers-reduced-motion` drops the slide and stagger while keeping
+the fade.
+
+**It hides its own trigger above `hideAbove` (default 1200).** One instance can
+therefore live in the NavBar and behave correctly at every width without relying
+on variants — and that one number is also the fix for the laptop complaint.
+
+**State: wired but not finished.**
+
+- `MobileNav` instance `EfQaekuIX` added to the primary variant's `Actions`
+  stack, CTA pointing at the same mailto as the nav button.
+- **The original hamburger is still present in `MobileLight`**, so below 1200px
+  there would be two. **Do not publish until it is removed.**
+- After removal, drop `hideAbove` to 1000.

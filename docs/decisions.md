@@ -876,3 +876,68 @@ anything. Both are removed from `open-questions.md` per that file's convention.
 decision does **not** settle Q2 — choosing Postgres-on-Supabase for the account
 area does not choose the language or framework for the ingestion pipeline, and
 should not be read as having done so.
+
+---
+
+### 2026-08-16 — Account area schema: read-only and isolated by the database
+
+Applied to Supabase project `BotLane` (`tqfyhgzaxaakaewmwamc`). Three migrations,
+now in `supabase/migrations/` — **the first application code in this repository.**
+
+**Five tables.** `customers` (also the invite allowlist), `orders` (Marketplace
+purchases), `engagements` (service clients), `payments`, `documents`.
+
+**Three properties are enforced by Postgres, not by application code.** Each was
+tested rather than assumed:
+
+| Property | How | Verified |
+|---|---|---|
+| Tenant isolation | RLS on every table via `private.current_customer_id()` | Queried as customer A: saw own row, **0 rows of customer B** |
+| Invite-only | Trigger on `auth.users` rejects any email not in `customers` | Insert refused: `42501 This email address is not on the BotLane account list` |
+| Read-only | **No** insert/update/delete policy exists on any table | Insert as authenticated: `42501 new row violates row-level security policy` |
+
+The read-only property is the interesting one. It is not a frontend convention —
+there is simply no write policy for the `authenticated` role anywhere, so a
+customer cannot write even if the app is wrong or hostile. All writes come from
+the operator or the Stripe webhook using `service_role`, which bypasses RLS.
+
+**Design decisions worth keeping:**
+
+- **`payments` is a mirror of Stripe, not a ledger.** Stripe stays
+  authoritative; the table exists so the dashboard does not make live Stripe
+  calls on page load. If the two disagree, this table is wrong. Rendering a
+  Stripe-hosted invoice URL rather than our own invoice keeps it that way.
+- **Payment and fulfilment are separate columns on `orders`.** Everything is
+  built to order, so an order is legitimately paid weeks before delivered.
+  Collapsing them into one status would make that state unrepresentable.
+- **`engagements.sending_started_at` is the maintenance billing anchor**, not
+  the setup payment date. Warm-up takes weeks and `/terms` §4 says the first
+  maintenance invoice is issued when sending begins. A `CHECK` keeps `ended`
+  and `ended_at` consistent.
+- **`customers.notes` is operator-only** and withheld by a column-level grant,
+  not by hoping nobody selects it.
+- **Status columns are `text` + `CHECK`, not enums.** This schema will change;
+  adding a value to a `CHECK` is a one-line migration, `ALTER TYPE` is not.
+- **`documents.storage_path` must start with the `customer_id`**, because the
+  storage policy authorises on the first path segment. Break that convention and
+  the bucket leaks.
+
+**The linter caught something worth recording.** Both `SECURITY DEFINER`
+functions were originally in `public`, which PostgREST exposes — meaning they
+were callable over HTTP at `/rest/v1/rpc/`. They were moved to a `private`
+schema, which PostgREST does not expose, so they remain usable from policies and
+triggers with no HTTP surface. Security advisors now return **zero** findings.
+**Run `get_advisors` after every schema change**; this was not obvious from the
+code.
+
+**Open:**
+
+- **No `updated_at` protection against clock skew** and no soft-delete anywhere.
+  Deliberate for now; revisit if data ever needs auditing.
+- The app itself does not exist. Stack is still undecided (`CLAUDE.md` §3), and
+  that is the next decision — the schema deliberately does not assume one.
+- The Stripe webhook that populates `orders`, `payments` and invites the buyer
+  is not built.
+- Google OAuth needs a Google Cloud project and consent screen configured under
+  the operator's account. Supabase Auth needs the provider enabled. Neither is
+  done, and neither should be done by an agent.

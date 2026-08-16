@@ -28,7 +28,15 @@
 // Without it the magic link will refuse to come back and the sign-in silently
 // fails. This is the single most likely thing to be wrong.
 
-import { useCallback, useEffect, useMemo, useState } from "react"
+import {
+    useCallback,
+    useEffect,
+    useMemo,
+    useState,
+    type CSSProperties,
+    type FormEvent,
+    type ReactNode,
+} from "react"
 import { addPropertyControls, ControlType, useIsStaticRenderer } from "framer"
 
 const DISPLAY = '"Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace'
@@ -51,13 +59,6 @@ const DEFAULT_THEME: Theme = {
     text: "rgb(240, 240, 240)",
     muted: "rgb(136, 136, 136)",
     accent: "rgb(0, 255, 136)",
-}
-
-function rgba(input: string, alpha: number) {
-    if (!input) return `rgba(0,0,0,${alpha})`
-    const nums = input.match(/[\d.]+/g)
-    if (nums && nums.length >= 3) return `rgba(${nums[0]}, ${nums[1]}, ${nums[2]}, ${alpha})`
-    return input
 }
 
 const money = (cents: number, currency = "usd") =>
@@ -195,7 +196,7 @@ const label = (t: Theme) => ({
     color: t.muted,
 })
 
-function Panel({ t, children }: { t: Theme; children: React.ReactNode }) {
+function Panel({ t, children }: { t: Theme; children: ReactNode }) {
     return (
         <div
             style={{
@@ -222,7 +223,7 @@ function Row({
     t: Theme
     left: string
     right?: string
-    sub?: React.ReactNode
+    sub?: ReactNode
 }) {
     return (
         <div
@@ -264,7 +265,7 @@ export default function Account(props: {
     text: string
     muted: string
     accent: string
-    style?: React.CSSProperties
+    style?: CSSProperties
 }) {
     const t: Theme = {
         surface: props.surface || DEFAULT_THEME.surface,
@@ -363,7 +364,7 @@ export default function Account(props: {
     }, [api, token])
 
     const submit = useCallback(
-        async (e: React.FormEvent) => {
+        async (e: FormEvent) => {
             e.preventDefault()
             setError(null)
             setBusy(true)
@@ -416,7 +417,7 @@ export default function Account(props: {
         [payments],
     )
 
-    const shell: React.CSSProperties = {
+    const shell: CSSProperties = {
         display: "flex",
         flexDirection: "column",
         gap: 24,

@@ -1206,3 +1206,45 @@ on variants — and that one number is also the fix for the laptop complaint.
 - **The original hamburger is still present in `MobileLight`**, so below 1200px
   there would be two. **Do not publish until it is removed.**
 - After removal, drop `hideAbove` to 1000.
+
+---
+
+### 2026-08-16 — MCP reads report a node differently depending on how you ask
+
+Recorded because it produced a false alarm and nearly a pointless "fix".
+
+**Reading a node as the root of the query returns absolute canvas coordinates.**
+`getNodeXml` on the NavBar's `Actions` stack came back as:
+
+```
+<Actions position="absolute" left="0px" centerY="50%">
+  <Button position="absolute" centerX="50%" centerY="50%" />
+  <MobileNav position="absolute" top="-26px" left="1327px" />
+```
+
+which reads as a broken layout — a hamburger pinned 1327px off to the side.
+
+**Reading the same node through its parent returns its real in-flow
+attributes:**
+
+```
+<Actions layout="stack" gap="16px" stackDirection="horizontal">
+  <Button width="fit-content" height="52px" />
+  <MobileNav width="44px" height="44px" />
+```
+
+Nothing was wrong. The first form is Framer describing where the node sits on
+the canvas; the second is what it actually is inside its parent's layout.
+
+**Rule: never diagnose layout from a node read as the root of the query.** Read
+its parent. This sits alongside the existing rule that pages should be judged by
+rendered HTML rather than page XML — same failure, different surface.
+
+**Related, and consistent:** an `updateXmlForNode` that returns *"No changes were
+made"* can simply mean the attributes sent already match. It is not always the
+focus problem recorded earlier. Check by reading through the parent before
+assuming a failed write.
+
+**Also settled here:** `MobileNav` instance `EfQaekuIX` now has `hideAbove=1000`,
+so the desktop nav takes over at 1000px instead of 1200. The nav needs ~800px,
+so there is headroom.

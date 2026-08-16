@@ -19,6 +19,13 @@
 //     fade. Motion is decoration; access to navigation is not.
 //   * Focus moves into the panel on open and returns to the trigger on close.
 //
+// ── WHY THE OVERLAY IS PORTALLED TO document.body ────────────────────────
+// The navbar sits inside an ancestor carrying a CSS transform. A transformed
+// ancestor becomes the containing block for `position: fixed` descendants, so
+// the panel anchored to that div rather than to the viewport and left a sliver
+// of itself on screen while closed. No amount of CSS fixes that from inside the
+// subtree; the overlay has to leave it. The trigger stays in the navbar.
+//
 // ── FRAMER ───────────────────────────────────────────────────────────────
 // `previewOpen` forces the open state on the canvas so the panel can be
 // designed without clicking. It is ignored on the published site.
@@ -31,6 +38,7 @@ import {
     useState,
     type CSSProperties,
 } from "react"
+import { createPortal } from "react-dom"
 import { addPropertyControls, ControlType, useIsStaticRenderer } from "framer"
 
 const DISPLAY = '"Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace'
@@ -104,6 +112,9 @@ export default function MobileNav(props: Props) {
     const triggerRef = useRef<HTMLButtonElement | null>(null)
     const scrollY = useRef(0)
     const cls = `mnav-${useId().replace(/:/g, "")}`
+    // document does not exist until after mount, so the portal waits.
+    const [mounted, setMounted] = useState(false)
+    useEffect(() => setMounted(true), [])
 
     // On the canvas the panel is shown so it can be designed; on the published
     // site `previewOpen` is ignored entirely.
@@ -169,6 +180,169 @@ export default function MobileNav(props: Props) {
     const panelWidth = `min(${widthPercent}%, ${maxWidth}px)`
     const slide = reduced ? "none" : `transform 520ms ${EASE}`
 
+    const overlay = (
+        <>
+        {/* Backdrop. Blurred rather than merely dark, so the page reads as
+            still there — the panel is a layer, not a new screen. */}
+        <div
+            className={`${cls}-layer`}
+            onClick={close}
+            aria-hidden="true"
+            style={{
+                position: "fixed",
+                inset: 0,
+                zIndex: 9998,
+                background: "rgba(0, 0, 0, 0.55)",
+                backdropFilter: "blur(10px) saturate(120%)",
+                WebkitBackdropFilter: "blur(10px) saturate(120%)",
+                opacity: shown ? 1 : 0,
+                pointerEvents: shown ? "auto" : "none",
+                transition: `opacity 420ms ${EASE}`,
+            }}
+        />
+
+        <div
+            className={`${cls}-layer`}
+            ref={panelRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Navigation"
+            tabIndex={-1}
+            style={{
+                position: "fixed",
+                top: 0,
+                right: 0,
+                bottom: 0,
+                width: panelWidth,
+                zIndex: 9999,
+                display: "flex",
+                flexDirection: "column",
+                boxSizing: "border-box",
+                padding: "32px 28px 28px",
+                background: surface,
+                // A hairline of accent on the leading edge, and a long
+                // shadow so the panel sits above the page rather than in it.
+                borderLeft: `1px solid ${rgba(accent, 0.18)}`,
+                boxShadow: shown ? "-32px 0 80px rgba(0, 0, 0, 0.55)" : "none",
+                transform: shown ? "translateX(0)" : "translateX(101%)",
+                transition: slide,
+                outline: "none",
+                overflowY: "auto",
+            }}
+        >
+            {/* A faint accent wash at the top edge. Enough to catch light,
+                not enough to notice as a gradient. */}
+            <div
+                aria-hidden="true"
+                style={{
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    height: 180,
+                    pointerEvents: "none",
+                    background: `linear-gradient(180deg, ${rgba(accent, 0.06)} 0%, ${rgba(accent, 0)} 100%)`,
+                }}
+            />
+
+            {eyebrow ? (
+                <span
+                    style={{
+                        fontFamily: MONO,
+                        fontSize: 11,
+                        letterSpacing: "0.14em",
+                        textTransform: "uppercase",
+                        color: muted,
+                        marginBottom: 36,
+                        opacity: shown ? 1 : 0,
+                        transition: reduced ? "none" : `opacity 300ms ${EASE} 120ms`,
+                    }}
+                >
+                    {eyebrow}
+                </span>
+            ) : null}
+
+            <nav style={{ display: "flex", flexDirection: "column", flex: "1 1 auto" }}>
+                {items.map((item, i) => (
+                    <a
+                        key={`${item.label}-${i}`}
+                        href={item.link}
+                        onClick={close}
+                        style={{
+                            display: "block",
+                            padding: "18px 0",
+                            borderBottom: `1px solid ${border}`,
+                            fontFamily: DISPLAY,
+                            fontSize: 20,
+                            letterSpacing: "-0.02em",
+                            color: text,
+                            textDecoration: "none",
+                            // Staggered entrance. Each item is 55ms behind
+                            // the last, which reads as the panel settling
+                            // rather than as items animating individually.
+                            opacity: shown ? 1 : 0,
+                            transform: shown || reduced ? "translateX(0)" : "translateX(18px)",
+                            transition: reduced
+                                ? `opacity 200ms linear`
+                                : `opacity 420ms ${EASE} ${140 + i * 55}ms, transform 420ms ${EASE} ${140 + i * 55}ms`,
+                        }}
+                    >
+                        {item.label}
+                    </a>
+                ))}
+            </nav>
+
+            {ctaLabel ? (
+                <a
+                    href={ctaLink}
+                    onClick={close}
+                    style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        minHeight: 52,
+                        marginTop: 28,
+                        borderRadius: 10,
+                        background: accent,
+                        color: "rgb(8, 8, 8)",
+                        fontFamily: BODY,
+                        fontWeight: 500,
+                        fontSize: 15,
+                        textDecoration: "none",
+                        opacity: shown ? 1 : 0,
+                        transform: shown || reduced ? "translateY(0)" : "translateY(10px)",
+                        transition: reduced
+                            ? "opacity 200ms linear"
+                            : `opacity 420ms ${EASE} ${180 + items.length * 55}ms, transform 420ms ${EASE} ${180 + items.length * 55}ms`,
+                    }}
+                >
+                    {ctaLabel}
+                </a>
+            ) : null}
+
+            {footnote ? (
+                <span
+                    style={{
+                        marginTop: 18,
+                        fontFamily: MONO,
+                        fontSize: 11,
+                        lineHeight: "1.5em",
+                        letterSpacing: "0.04em",
+                        color: muted,
+                        opacity: shown ? 1 : 0,
+                        transition: reduced
+                            ? "none"
+                            : `opacity 420ms ${EASE} ${220 + items.length * 55}ms`,
+                    }}
+                >
+                    {footnote}
+                </span>
+            ) : null}
+        </div>
+        </>
+    )
+
+
     return (
         <>
             {/*
@@ -232,163 +406,13 @@ export default function MobileNav(props: Props) {
                 />
             </button>
 
-            {/* Backdrop. Blurred rather than merely dark, so the page reads as
-                still there — the panel is a layer, not a new screen. */}
-            <div
-                className={`${cls}-layer`}
-                onClick={close}
-                aria-hidden="true"
-                style={{
-                    position: "fixed",
-                    inset: 0,
-                    zIndex: 9998,
-                    background: "rgba(0, 0, 0, 0.55)",
-                    backdropFilter: "blur(10px) saturate(120%)",
-                    WebkitBackdropFilter: "blur(10px) saturate(120%)",
-                    opacity: shown ? 1 : 0,
-                    pointerEvents: shown ? "auto" : "none",
-                    transition: `opacity 420ms ${EASE}`,
-                }}
-            />
-
-            <div
-                className={`${cls}-layer`}
-                ref={panelRef}
-                role="dialog"
-                aria-modal="true"
-                aria-label="Navigation"
-                tabIndex={-1}
-                style={{
-                    position: "fixed",
-                    top: 0,
-                    right: 0,
-                    bottom: 0,
-                    width: panelWidth,
-                    zIndex: 9999,
-                    display: "flex",
-                    flexDirection: "column",
-                    boxSizing: "border-box",
-                    padding: "32px 28px 28px",
-                    background: surface,
-                    // A hairline of accent on the leading edge, and a long
-                    // shadow so the panel sits above the page rather than in it.
-                    borderLeft: `1px solid ${rgba(accent, 0.18)}`,
-                    boxShadow: shown ? "-32px 0 80px rgba(0, 0, 0, 0.55)" : "none",
-                    transform: shown ? "translateX(0)" : "translateX(101%)",
-                    transition: slide,
-                    outline: "none",
-                    overflowY: "auto",
-                }}
-            >
-                {/* A faint accent wash at the top edge. Enough to catch light,
-                    not enough to notice as a gradient. */}
-                <div
-                    aria-hidden="true"
-                    style={{
-                        position: "absolute",
-                        top: 0,
-                        left: 0,
-                        right: 0,
-                        height: 180,
-                        pointerEvents: "none",
-                        background: `linear-gradient(180deg, ${rgba(accent, 0.06)} 0%, ${rgba(accent, 0)} 100%)`,
-                    }}
-                />
-
-                {eyebrow ? (
-                    <span
-                        style={{
-                            fontFamily: MONO,
-                            fontSize: 11,
-                            letterSpacing: "0.14em",
-                            textTransform: "uppercase",
-                            color: muted,
-                            marginBottom: 36,
-                            opacity: shown ? 1 : 0,
-                            transition: reduced ? "none" : `opacity 300ms ${EASE} 120ms`,
-                        }}
-                    >
-                        {eyebrow}
-                    </span>
-                ) : null}
-
-                <nav style={{ display: "flex", flexDirection: "column", flex: "1 1 auto" }}>
-                    {items.map((item, i) => (
-                        <a
-                            key={`${item.label}-${i}`}
-                            href={item.link}
-                            onClick={close}
-                            style={{
-                                display: "block",
-                                padding: "18px 0",
-                                borderBottom: `1px solid ${border}`,
-                                fontFamily: DISPLAY,
-                                fontSize: 20,
-                                letterSpacing: "-0.02em",
-                                color: text,
-                                textDecoration: "none",
-                                // Staggered entrance. Each item is 55ms behind
-                                // the last, which reads as the panel settling
-                                // rather than as items animating individually.
-                                opacity: shown ? 1 : 0,
-                                transform: shown || reduced ? "translateX(0)" : "translateX(18px)",
-                                transition: reduced
-                                    ? `opacity 200ms linear`
-                                    : `opacity 420ms ${EASE} ${140 + i * 55}ms, transform 420ms ${EASE} ${140 + i * 55}ms`,
-                            }}
-                        >
-                            {item.label}
-                        </a>
-                    ))}
-                </nav>
-
-                {ctaLabel ? (
-                    <a
-                        href={ctaLink}
-                        onClick={close}
-                        style={{
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            minHeight: 52,
-                            marginTop: 28,
-                            borderRadius: 10,
-                            background: accent,
-                            color: "rgb(8, 8, 8)",
-                            fontFamily: BODY,
-                            fontWeight: 500,
-                            fontSize: 15,
-                            textDecoration: "none",
-                            opacity: shown ? 1 : 0,
-                            transform: shown || reduced ? "translateY(0)" : "translateY(10px)",
-                            transition: reduced
-                                ? "opacity 200ms linear"
-                                : `opacity 420ms ${EASE} ${180 + items.length * 55}ms, transform 420ms ${EASE} ${180 + items.length * 55}ms`,
-                        }}
-                    >
-                        {ctaLabel}
-                    </a>
-                ) : null}
-
-                {footnote ? (
-                    <span
-                        style={{
-                            marginTop: 18,
-                            fontFamily: MONO,
-                            fontSize: 11,
-                            lineHeight: "1.5em",
-                            letterSpacing: "0.04em",
-                            color: muted,
-                            opacity: shown ? 1 : 0,
-                            transition: reduced
-                                ? "none"
-                                : `opacity 420ms ${EASE} ${220 + items.length * 55}ms`,
-                        }}
-                    >
-                        {footnote}
-                    </span>
-                ) : null}
-            </div>
+            {/*
+                Portalled so the overlay escapes the transformed ancestor.
+                On the Framer canvas there is no body to portal into that
+                behaves usefully, so it renders inline there instead —
+                positioning is approximate on canvas and exact when published.
+            */}
+            {isStatic ? overlay : mounted ? createPortal(overlay, document.body) : null}
         </>
     )
 }

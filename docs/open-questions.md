@@ -5,7 +5,10 @@ outside chat history. When one is settled, add it to
 [decisions.md](decisions.md), remove it from here, and update `CLAUDE.md` §3.
 
 Status: Q1 and Q2 remain open. **Q3 was settled 2026-08-16** — see
-`decisions.md`.
+`decisions.md`. A **draft recommendation** for Q1 and Q2 now exists at
+[docs/ingestion-recommendation.md](ingestion-recommendation.md) (2026-08-17);
+it is a proposal, not a decision — this file remains the statement of open
+questions until one of them is actually settled.
 
 ---
 
@@ -109,18 +112,52 @@ Decide and write an ADR **before the first send**, not after.
 
 ---
 
-# Highest-value unknown to verify
+# Highest-value unknown — RESOLVED 2026-08-17
 
-**Do the ATS APIs expose original posting dates?**
+**Do the ATS APIs expose original posting dates? Yes. All three.**
 
-`vision.md` states the signal is temporal and cannot be backfilled. That holds
-for *reposts* — you must observe a posting disappear and return. It may **not**
-hold for *age*: Lever exposes `createdAt` and Ashby `publishedAt`, which would
-let "open 60+ days" be computed immediately. Greenhouse exposes `updated_at`,
-which moves, and probably does need accumulated history.
+Checked against live public endpoints, eight boards, no API keys:
 
-**Unverified — field behaviour has not been checked against live responses.**
+| ATS | Field | Present on | Oldest posting seen |
+|---|---|---|---|
+| Greenhouse | `first_published` | **100%** — 161/161, 158/158, 124/124, 50/50, 17/17 | 1347 days |
+| Ashby | `publishedAt` | **100%** — 175/175, 96/96, 33/33 | 1937 days |
+| Lever | `createdAt` | present (epoch millis) | — |
 
-This is worth resolving first because it decides whether the first real
-40-company sample is producible this week or only after two months of
-observation — i.e. whether first revenue is days or months away.
+Greenhouse was the one assumed to be a problem — the note here said it exposes
+only `updated_at`, "which moves, and probably does need accumulated history."
+It carries **`first_published` as well**, and that field is stable and present
+on every posting checked. Stripe's board, for example, returned
+`first_published` 25 days ago on a job whose `updated_at` was 10 days ago: the
+two are independent, and the first is the one that matters.
+
+**What this changes.** "Open 60+ days" is computable on **day one**. It does not
+need two months of observation. Across five arbitrary Greenhouse boards, 258
+roles were already 60+ days old at the moment of checking; across three Ashby
+boards, 172. The signal is abundant and immediately available.
+
+**What it does not change.** *Quietly reposted* still requires watching over
+time — you have to see a posting disappear and return, and no snapshot tells you
+that. `vision.md` remains right about the repost signal and was wrong only about
+age. Same for withdrawn-with-no-hire, which is also a disappearance.
+
+**So the ingestion clock is less urgent than it looked, but not gone.** The
+first 40-company sample can be built from age alone, this week, without waiting.
+Every day without ingestion still loses repost and withdrawal history
+permanently — but that is now a second-order signal rather than a blocker on
+first revenue.
+
+**Reproduce:** the probe scripts are `ats_probe.py` and `ats_probe2.py`. They use
+only the standard library and hit documented public endpoints:
+
+```
+https://boards-api.greenhouse.io/v1/boards/{token}/jobs?content=true
+https://api.lever.co/v0/postings/{company}?mode=json
+https://api.ashbyhq.com/posting-api/job-board/{name}
+```
+
+**One practical note:** Lever board slugs are hard to guess — eventbrite,
+kickstarter, quora, mixpanel and box all returned 404. Greenhouse and Ashby
+slugs matched company names readily. Since the watchlist is a curated asset
+anyway (Q1, Option A), slugs need discovering and storing per company rather
+than inferring.

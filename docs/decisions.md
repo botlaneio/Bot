@@ -1288,3 +1288,47 @@ puts the wrapper back so React unmounts it from the parent it expects.
   from the `MobileMenu` component. Deleting the component left the icon behind,
   and with three children in a `space-between` row the new trigger landed in the
   centre rather than at the right edge.
+
+---
+
+### 2026-08-17 — All three ATS platforms expose an original posting date
+
+**Settles the "highest-value unknown" in `open-questions.md`, open since
+2026-08-12.** Checked against live public endpoints, eight boards, no API keys.
+
+| ATS | Field | Present on | Oldest seen |
+|---|---|---|---|
+| Greenhouse | `first_published` | **100%** (161/161, 158/158, 124/124, 50/50, 17/17) | 1347 days |
+| Ashby | `publishedAt` | **100%** (175/175, 96/96, 33/33) | 1937 days |
+| Lever | `createdAt` | present (epoch millis) | — |
+
+**The assumption that was wrong.** `open-questions.md` said Greenhouse exposes
+only `updated_at`, "which moves, and probably does need accumulated history."
+Greenhouse also returns **`first_published`**, on every posting checked, and the
+two fields are independent — Stripe's board showed `first_published` 25 days ago
+against `updated_at` 10 days ago.
+
+**"Open 60+ days" is computable on day one.** No two-month wait. Across five
+arbitrarily chosen Greenhouse boards, **258 roles were already 60+ days old** at
+the moment of checking; across three Ashby boards, **172**. The signal is
+abundant and immediately available.
+
+**The repost signal is unchanged and still needs time.** You cannot see a
+posting disappear and return from one snapshot. `vision.md` was right that the
+signal is temporal — it was right about reposts and withdrawals, wrong only
+about age.
+
+**What this changes about sequencing.** The pre-sale artifact — 40 companies
+with a role and a day count — can be produced **this week**, from age alone,
+before any ingestion history exists. The ingestion clock still matters for
+reposts and withdrawals, but it is no longer the thing standing between here and
+first revenue. That was the assumption the whole build order rested on.
+
+**Also learned:** Lever board slugs are not guessable. `eventbrite`,
+`kickstarter`, `quora`, `mixpanel` and `box` all returned 404, while Greenhouse
+and Ashby slugs matched company names readily. Since Q1 already chose a curated
+watchlist over crawling, slugs must be discovered and stored per company rather
+than derived.
+
+**Reproduce:** `scripts/ats_probe.py` and `scripts/ats_probe2.py`, standard
+library only.

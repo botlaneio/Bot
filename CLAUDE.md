@@ -4,7 +4,9 @@ Operating instructions and technical context for the BotLane repository.
 Read this before acting. It records what is **verified**; anything not written
 here is not established fact.
 
-Last verified: 2026-08-16 (pricing, §1). Everything else: 2026-08-12.
+Last verified: 2026-08-17 (local repository state, §2, §3; Stripe/Supabase in
+use, §5). Remote not re-verified on that date — outbound network was
+unavailable from the dev machine. Pricing (§1): 2026-08-16.
 
 ---
 
@@ -56,8 +58,12 @@ with the above beyond the name. Do not treat it as prior art.
 | GitHub org | `botlaneio` |
 | Linear workspace | [botlanellc](https://linear.app/botlanellc) |
 
-**Current state: no application code**, no dependency manifest, no build. Only
-`README.md`, `CLAUDE.md`, `.gitignore`, `.gitattributes`, and `docs/`.
+**Current state:** the sales and customer surface is built and live; the
+pipeline is not. The repository contains `docs/`, `supabase/` (three schema
+migrations plus the `stripe-webhook` Edge Function) and `framer/` (copies of
+the Framer code components — Framer is the runtime; change both together).
+No pipeline code, no dependency manifest, no build. The pipeline stack is
+still undecided (§3).
 
 Remote verified 2026-08-12: repository exists, public, `main` is the default
 branch, and the authenticated account (`botlaneio`) has ADMIN permission. Local
@@ -71,12 +77,22 @@ force-pushed, so that commit is preserved.
 
 Product scope is now defined — see §1 and [docs/vision.md](docs/vision.md).
 
-Three decisions were raised on 2026-08-12 and **deliberately deferred** until
-environment setup is complete: ingestion approach, pipeline stack, and database
-location. The options, tradeoffs, and recommendations are written up in
-[docs/open-questions.md](docs/open-questions.md), along with three known risks
-(Apollo credit ceiling, cold-email compliance, paused Supabase project). Read
-that before reopening any of them — do not re-derive from scratch.
+Two decisions raised on 2026-08-12 remain **deliberately deferred**: ingestion
+approach (Q1) and pipeline stack (Q2). Database location (Q3) was settled
+2026-08-16 — Supabase project `BotLane`, see §5 and `decisions.md`. The options
+and tradeoffs are written up in [docs/open-questions.md](docs/open-questions.md);
+a **draft** recommendation for Q1/Q2 — a proposal, not a decision — is in
+[docs/ingestion-recommendation.md](docs/ingestion-recommendation.md). Two known
+risks remain (Apollo credit ceiling, cold-email compliance; R1/R2 in
+`open-questions.md`). Read those before reopening either question — do not
+re-derive from scratch.
+
+The "highest-value unknown" in `open-questions.md` — whether the ATS APIs
+expose original posting dates — was **resolved 2026-08-17**: Greenhouse
+`first_published`, Ashby `publishedAt`, and Lever `createdAt` are present on
+every posting checked, so "open 60+ days" is computable on day one. Reposts
+and withdrawals still need accumulated history. See `decisions.md` and
+`scripts/ats_probe*.py`.
 
 The following remain genuinely undecided. If a task depends on one, **ask**
 rather than assuming, and update this file once decided:
@@ -139,10 +155,32 @@ delete them.** It exposes no `delete_issue`, `delete_project`, `delete_milestone
 or archive tool. Deleting anything in Linear requires the user to do it in the
 Linear web UI.
 
-### External services (verified 2026-08-12)
+**The Framer MCP connector cannot see inside a variant, and cannot write into
+one** (verified 2026-08-17). `getNodeXml` on a replica returns it as a leaf even
+when the editor's layer tree plainly shows children, and creating a child fails
+outright with `Cannot set parent to a replica node`. Only a few attributes on
+the replica itself can be set. Consequences, all of which have already cost
+time:
 
-Both are connected and authenticated as `admin@botlane.io`. Neither is yet used
-by any code.
+- To learn what is inside a variant, **ask for a screenshot of the layer tree.**
+  There is no tool call that will tell you.
+- Placing a component into a non-primary variant is a manual step for the user.
+- A layer hidden in a variant emits **no DOM at all** — not an empty container.
+  Before concluding a component is broken, verify the node is visible in the
+  variant you are viewing. A component that renders nothing at one breakpoint
+  and correctly at another is a visibility flag, not a bug. See `decisions.md`
+  (2026-08-17), where this cost four publish cycles and an entire bisect.
+- Framer selects its variant from SSR classes at page load, so **reload after
+  resizing the browser** or readings are meaningless.
+
+Framer is the runtime for the site. `framer/` holds copies of the code
+components; change one, change both.
+
+### External services (verified 2026-08-12; in use since 2026-08-16)
+
+Connected and authenticated as `admin@botlane.io`. Supabase and Stripe are in
+production use by the account area and the Marketplace; Apollo is connected
+but not yet used by any code.
 
 **Apollo.io** — contact identification and enrichment; also sells domains and
 mailboxes. Current balance is a hard constraint on the pre-sale motion:
@@ -158,6 +196,12 @@ At 40 contacts per pre-sale sample, 200 lead credits funds roughly **five**
 prospect samples before top-up. Budget deliberately; do not spend enrichment
 credits on speculative bulk pulls.
 
+**The credits are web-UI-only, verified 2026-08-17.** The free plan returns
+`API_INACCESSIBLE` on every API endpoint (`api_search`, `bulk_match`, `match`),
+so there is no scripted enrichment at all until a paid plan — see `decisions.md`
+(2026-08-17). Contacts for the sample must come from public sources plus a
+verification step, or a paid data source.
+
 **Supabase** — project **`BotLane`** (`nekribxexmpmpzefcpvn`), region
 **`us-east-1`**, org `sbeeayorpmyiybkyrqtv`. Free tier, $0/mo.
 **This is the only project to use.**
@@ -168,6 +212,15 @@ credits on speculative bulk pulls.
 > projects. Before touching Supabase, check which account the dashboard, the
 > CLI (`npx supabase projects list`) and the Claude connector are each pointing
 > at. They can and did disagree.
+
+**Stripe** — account `acct_1S1xniI9ZXWhlDED` ("Botlane"), **live mode only**:
+the connector exposes no test mode, so anything created is real. Ten products —
+seven Marketplace automations ($29–$399, each with a live Payment Link that
+takes cards now) and three service products ($4,999 setup, $2,499/mo
+maintenance, $11,246 setup + first quarter, deliberately **no** payment links:
+the service is invoiced to a named client at net 14). The `stripe-webhook`
+Edge Function on Supabase is the only consumer. Product/price IDs and webhook
+wiring are in `decisions.md` and `handoff.md`.
 
 Abandoned, safe to delete, **do not use**:
 

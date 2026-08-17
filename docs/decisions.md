@@ -1332,3 +1332,113 @@ than derived.
 
 **Reproduce:** `scripts/ats_probe.py` and `scripts/ats_probe2.py`, standard
 library only.
+
+---
+
+## Apollo's free plan grants credits but no API access — contacts must come from elsewhere
+
+**Date:** 2026-08-17
+
+The pre-sale sample specified in `vision.md` is "role, days open, and the person
+to contact." The first two are solved and free. The third is not, and the reason
+is not the one the credit balance suggests.
+
+The account holds **200 lead credits, none consumed**. But all three endpoints
+needed to turn a company into a contact return the same error:
+
+    api/v1/mixed_people/api_search   API_INACCESSIBLE
+    api/v1/people/bulk_match         API_INACCESSIBLE
+    api/v1/people/match              API_INACCESSIBLE
+
+    "not included in your Free plan ... All paid plans include full API access"
+
+So the credits are real but only spendable through Apollo's web UI. **No credits
+were consumed** — blocked calls do not charge.
+
+**What works instead.** Public sources — company sites, press announcements, org
+directories — produced a named engineering leader for **21 of 23** companies at
+no cost, several of them infrastructure-specific rather than general engineering
+(Baseten's Head of Infrastructure, Replit's Infrastructure/SRE lead, Socure's VP
+Infrastructure Operations). Names and titles are free; **email addresses are the
+part that is actually gated.**
+
+**Public sources go stale, and this is measurable.** Two errors surfaced in 23
+companies: Tailscale's widely-listed CTO left in 2024, and Guild's leadership
+turned over after the press release naming its VP Engineering. Roughly a 1-in-10
+error rate on titles sourced this way. For a document whose whole selling point
+is that its facts are dated and verifiable, that rate is too high to ship
+unverified.
+
+**Consequence for the product.** The ATS half of the sample is free, exact, and
+automatable. The contact half is neither free nor exact. Either the sample ships
+as companies-and-roles only, or contacts get a paid data source and a
+verification step. Do not let a bounce-prone guessed-email list ship under a
+brand whose pitch is precision.
+
+**Reproduce:** `scripts/build_sample.py` for the company list; contact discovery
+was manual web research, not scripted.
+
+---
+
+## The mobile nav was never broken — it was a hidden layer, and four publish cycles went to proving it
+
+**Date:** 2026-08-17
+
+`MobileNav` rendered nothing on mobile. The response was to assume the code was
+at fault: strip it to a `useState`-only stub, remove `useId`, the effects, the
+overlay relocation, the transitions, and add back one piece at a time. That was
+the wrong tree entirely.
+
+**Root cause.** The instance inside the NavBar's `Mobile_Light` variant had
+visibility switched off. A hidden Framer node emits no DOM whatsoever — not an
+empty container, not a zero-height box, nothing. So every "renders nothing"
+observation was reading the visibility flag and attributing it to the component.
+
+**The test that would have settled it in one step.** Load the site at *desktop*
+width, where the same instance is visible, and look for the trigger. Done on
+2026-08-17 it returned immediately:
+
+    navButtons: ["MENU|Open menu"]
+    dialogs: 1
+    links: Features, How It Works, Pricing, FAQ, Marketplace, Get my 40 companies
+
+The component opened, closed, toggled `aria-expanded` and rendered every link.
+It had been working the whole time. **When a component appears to render
+nothing, check whether the node is visible in the variant being viewed before
+reading a single line of its source.**
+
+**Framer's MCP API cannot help here, and this is a hard limit.** Replica
+(variant) children are not enumerable — `getNodeXml` on a replica returns it as
+a leaf even when the editor's layer tree plainly shows children inside. Writing
+is refused outright:
+
+    Node creation failed: Cannot set parent to a replica node
+
+So variant contents can only be inspected and changed in the Framer editor. Any
+task that depends on what is inside a variant needs a screenshot of the layer
+tree, not an MCP call. A screenshot is what finally exposed this — the layer was
+greyed out in `Mobile_Light > Header`, dimmed exactly like `Navigation Menu` and
+`Actions`, the two layers hidden on mobile by design.
+
+**A real bug did surface, underneath the imaginary one.** With the stub's
+overlay relocation removed, the opened panel measured 420x72 while reporting
+`position: fixed` — not pinned right, not full height, cropped by the navbar's
+own `overflow: clip`. The transformed-ancestor containment described in
+`framer/MobileNav.tsx` is therefore confirmed by measurement, not just argued.
+The imperative move to `document.body` is load-bearing; after restoring it,
+`dialogParentIsBody` reads true and the panel resolves against the viewport.
+
+**Still true and still worth the warning:** importing `react-dom` in a Framer
+code file makes the whole component render nothing, silently. That is why the
+relocation is imperative rather than `createPortal`.
+
+**Also learned:** resizing the browser without reloading gives false readings —
+Framer picks its variant via SSR classes at load, so one probe showed the
+desktop nav and a hamburger simultaneously. Always reload after a resize.
+
+**Outstanding:** the `Mobile_Light` visibility flag is still off after two
+attempts; mobile continues to run on the original hamburger. Desktop is correct
+— trigger hidden above 1000px by the component's own media query.
+
+**Reproduce:** load `https://botlane.io` at 1280px and at 375px, reloading after
+each resize, and compare `document.querySelector('nav')` button counts.

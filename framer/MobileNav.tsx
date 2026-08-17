@@ -26,12 +26,32 @@
 // itself on screen while closed. No CSS fixes that from inside the subtree —
 // the overlay has to leave it.
 //
+// Measured 2026-08-17 on the published site, with the relocation removed: the
+// panel reported `position: fixed` yet came back 420x72, not pinned to the
+// right edge and not full height — clipped by the navbar's own `overflow:
+// clip` rather than filling the viewport. With the relocation in place it
+// resolves against the viewport as intended. This is not theoretical.
+//
 // The obvious tool is createPortal, but **importing react-dom in a Framer code
 // file makes the whole component render nothing**, with no console error: the
 // container mounts 0x0 and empty. So the overlay is relocated imperatively
 // instead — React still owns and updates the nodes, they simply live somewhere
 // else in the document. The effect moves the wrapper back before unmount so
 // React removes it from the parent it expects.
+//
+// ── HISTORY: THE BUG THAT WAS NEVER IN THIS FILE ─────────────────────────
+// This component was once bisected down to a useState-only stub because it
+// "rendered nothing" on mobile, across four publish cycles. It was never
+// broken. The instance inside the NavBar's `Mobile_Light` variant had
+// visibility off, and a hidden Framer node emits no DOM at all — so every
+// reading was measuring that flag, not this code.
+//
+// Confirmed 2026-08-17: at desktop width, where the same instance IS visible,
+// this build rendered its trigger and opened its panel correctly. If it ever
+// appears to render nothing again, check the node's visibility in every
+// variant BEFORE editing anything here. Note also that Framer's MCP API
+// cannot see into or write children of a replica ("Cannot set parent to a
+// replica node"), so variant contents must be inspected in the editor.
 //
 // ── FRAMER ───────────────────────────────────────────────────────────────
 // `previewOpen` forces the open state on the canvas so the panel can be
@@ -145,16 +165,15 @@ export default function MobileNav(props: Props) {
     // Lock body scroll, and restore the exact position afterwards. Setting
     // overflow alone lets the page jump to the top on some browsers.
     useEffect(() => {
-        if (isStatic || typeof document === "undefined") return
+        if (isStatic || typeof document === "undefined" || !open) return
         const body = document.body
-        if (open) {
-            scrollY.current = window.scrollY
-            body.style.position = "fixed"
-            body.style.top = `-${scrollY.current}px`
-            body.style.left = "0"
-            body.style.right = "0"
-            body.style.overflow = "hidden"
-        } else if (body.style.position === "fixed") {
+        scrollY.current = window.scrollY
+        body.style.position = "fixed"
+        body.style.top = `-${scrollY.current}px`
+        body.style.left = "0"
+        body.style.right = "0"
+        body.style.overflow = "hidden"
+        return () => {
             body.style.position = ""
             body.style.top = ""
             body.style.left = ""
@@ -162,20 +181,16 @@ export default function MobileNav(props: Props) {
             body.style.overflow = ""
             window.scrollTo(0, scrollY.current)
         }
-        return () => {
-            body.style.position = ""
-            body.style.top = ""
-            body.style.left = ""
-            body.style.right = ""
-            body.style.overflow = ""
-        }
     }, [open, isStatic])
 
-    // Move focus in on open, hand it back to the trigger on close.
+    // Move focus in on open, hand it back to the trigger on close. The wasOpen
+    // guard stops the trigger from grabbing focus on the first (closed) render.
+    const wasOpen = useRef(false)
     useEffect(() => {
         if (isStatic) return
         if (open) panelRef.current?.focus()
-        else triggerRef.current?.focus?.()
+        else if (wasOpen.current) triggerRef.current?.focus?.()
+        wasOpen.current = open
     }, [open, isStatic])
 
     const overlayRef = useRef<HTMLDivElement | null>(null)

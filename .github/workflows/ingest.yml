@@ -7,8 +7,12 @@
 #
 # Requires two repository secrets (Settings -> Secrets and variables -> Actions):
 #
-#   SUPABASE_URL                https://nekribxexmpmpzefcpvn.supabase.co
-#   SUPABASE_SERVICE_ROLE_KEY   service_role key, botlaneio account, project BotLane
+#   SUPABASE_URL                https://btjusdaleigmnvpvdxgj.supabase.co
+#   SUPABASE_SERVICE_ROLE_KEY   secret key, org BotLane LLC, project btjusdaleigmnvpvdxgj
+#
+# The ref above was wrong until 2026-08-19: it read `nekribxexmpmpzefcpvn`,
+# which is not a Supabase project and does not resolve in DNS. It had been
+# copied into this file, README.md, CLAUDE.md and framer/Account.tsx.
 #
 # The service_role key bypasses RLS. It is granted execute on exactly two
 # functions and cannot reach the pipeline tables directly, but it is still a

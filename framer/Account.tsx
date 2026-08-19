@@ -815,12 +815,15 @@ addPropertyControls(Account, {
     supabaseUrl: {
         type: ControlType.String,
         title: "Supabase URL",
-        defaultValue: "https://nekribxexmpmpzefcpvn.supabase.co",
+        // Corrected 2026-08-19. This read `nekribxexmpmpzefcpvn` until then,
+        // which is not a Supabase project and returns NXDOMAIN — so every
+        // request from this component failed before it left the browser.
+        defaultValue: "https://btjusdaleigmnvpvdxgj.supabase.co",
     },
     publishableKey: {
         type: ControlType.String,
         title: "Publishable key",
-        defaultValue: "sb_publishable_Cv-m1k1cjb4V4FLIC4T6kA_CE5q9ujm",
+        defaultValue: "sb_publishable_Q0lcvPr7wMFlA61ptbFWgQ_ShtHOzQT",
         description: "Publishable (anon) key. Safe in the browser — RLS does the enforcing.",
     },
     surface: { type: ControlType.Color, title: "Surface", defaultValue: DEFAULT_THEME.surface },

@@ -250,16 +250,30 @@ so there is no scripted enrichment at all until a paid plan — see `decisions.m
 (2026-08-17). Contacts for the sample must come from public sources plus a
 verification step, or a paid data source.
 
-**Supabase** — project **`BotLane`** (`nekribxexmpmpzefcpvn`), region
-**`us-east-1`**, org `sbeeayorpmyiybkyrqtv`. Free tier, $0/mo.
-**This is the only project to use.**
+**Supabase** — project **`btjusdaleigmnvpvdxgj`**, region **`ap-southeast-1`**,
+org **`BotLane LLC`** (`sbeeayorpmyiybkyrqtv`). Free tier, $0/mo.
+**This is the only project to use.** API URL:
+`https://btjusdaleigmnvpvdxgj.supabase.co`.
 
-> **There are two Supabase accounts, and this has already cost hours.** The
-> project above lives on the **`botlaneio`** account — the same identity as the
-> GitHub org and `admin@botlane.io`. A second, personal account holds two dead
-> projects. Before touching Supabase, check which account the dashboard, the
-> CLI (`npx supabase projects list`) and the Claude connector are each pointing
-> at. They can and did disagree.
+> **`nekribxexmpmpzefcpvn` is not a Supabase project.** It was recorded here as
+> the live project, in `us-east-1`, until 2026-08-19. It does not exist: public
+> DNS returns NXDOMAIN for `nekribxexmpmpzefcpvn.supabase.co`. The bad ref had
+> been copied into `README.md`, `.github/workflows/ingest.yml` and
+> `framer/Account.tsx`, where it silently broke the live account area — every
+> request failed before leaving the browser. All four are corrected.
+>
+> **Verify the ref against the dashboard before trusting any file, including
+> this one.** `list_projects` on the Supabase connector returns exactly one
+> project for `BotLane LLC`; that is the authority. Note that a wrong
+> `project_id` passed to the connector may still return data from wherever it
+> is actually pointed, so a successful query is **not** proof that the ref you
+> used is real. Check DNS resolves as well.
+
+**The pipeline schema was rebuilt here on 2026-08-19** and the history clock
+restarted at day 1. Earlier poll data (18–19 Aug, 8 boards) was written to a
+different database and was not migrated. Ages in `stale_openings` are unaffected
+— they come from ATS publish dates, not from our own observations — but repost
+and withdrawal detection needs a continuous series from 2026-08-19 onward.
 
 Two schemas, and they have nothing to do with each other. `public` is the
 customer account area (RLS, tenant-isolated, read-only to customers). `pipeline`
@@ -287,8 +301,13 @@ Abandoned, safe to delete, **do not use**:
 | Project | Ref | Account | Why dead |
 |---|---|---|---|
 | `Solo's System` | `fyofjbxukmovxvkdzuxf` | personal | Tokyo region, never held data |
-| `BotLane` (first attempt) | `tqfyhgzaxaakaewmwamc` | personal | Correct schema, wrong account |
-| `botlaneio's Project` | `btjusdaleigmnvpvdxgj` | botlaneio | Singapore region, unused |
+| `BotLane` (first attempt) | `tqfyhgzaxaakaewmwamc` | personal | Held the account-area schema and the `stripe-webhook` Edge Function; **the webhook still points here** until it is redeployed |
+
+`btjusdaleigmnvpvdxgj` was listed here as "Singapore region, unused" until
+2026-08-19. It is now the live project — see above. It still carries an unrelated
+Prisma schema (`Account`, `Lead`, `Project`, `Session`, `User`, …) from an
+earlier app; those tables are untouched by BotLane and can be dropped once
+someone confirms nothing depends on them.
 
 ## 6. Git workflow
 

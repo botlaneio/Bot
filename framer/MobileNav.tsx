@@ -65,7 +65,7 @@ import {
     useState,
     type CSSProperties,
 } from "react"
-import { addPropertyControls, ControlType, useIsStaticRenderer } from "framer"
+import { addPropertyControls, ControlType, RenderTarget } from "framer"
 
 const DISPLAY = '"Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace'
 const MONO = '"JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace'
@@ -131,7 +131,9 @@ export default function MobileNav(props: Props) {
         accent,
     } = props
 
-    const isStatic = useIsStaticRenderer()
+    // Canvas only. The published site never reads this — routing runtime state
+    // through a static-render check kept this panel shut on the live site.
+    const onCanvas = RenderTarget.current() === RenderTarget.canvas
     const [open, setOpen] = useState(false)
     const [reduced, setReduced] = useState(false)
     const panelRef = useRef<HTMLDivElement | null>(null)
@@ -141,31 +143,31 @@ export default function MobileNav(props: Props) {
 
     // On the canvas the panel is shown so it can be designed; on the published
     // site `previewOpen` is ignored entirely.
-    const shown = isStatic ? previewOpen : open
+    const shown = onCanvas ? previewOpen : open
 
     useEffect(() => {
-        if (isStatic || typeof window === "undefined") return
+        if (typeof window === "undefined") return
         const mq = window.matchMedia("(prefers-reduced-motion: reduce)")
         const apply = () => setReduced(mq.matches)
         apply()
         mq.addEventListener?.("change", apply)
         return () => mq.removeEventListener?.("change", apply)
-    }, [isStatic])
+    }, [])
 
     // Escape to close.
     useEffect(() => {
-        if (!open || isStatic) return
+        if (!open) return
         const onKey = (e: KeyboardEvent) => {
             if (e.key === "Escape") setOpen(false)
         }
         window.addEventListener("keydown", onKey)
         return () => window.removeEventListener("keydown", onKey)
-    }, [open, isStatic])
+    }, [open])
 
     // Lock body scroll, and restore the exact position afterwards. Setting
     // overflow alone lets the page jump to the top on some browsers.
     useEffect(() => {
-        if (isStatic || typeof document === "undefined" || !open) return
+        if (typeof document === "undefined" || !open) return
         const body = document.body
         scrollY.current = window.scrollY
         body.style.position = "fixed"
@@ -181,24 +183,24 @@ export default function MobileNav(props: Props) {
             body.style.overflow = ""
             window.scrollTo(0, scrollY.current)
         }
-    }, [open, isStatic])
+    }, [open])
 
     // Move focus in on open, hand it back to the trigger on close. The wasOpen
     // guard stops the trigger from grabbing focus on the first (closed) render.
     const wasOpen = useRef(false)
     useEffect(() => {
-        if (isStatic) return
+        if (onCanvas) return
         if (open) panelRef.current?.focus()
         else if (wasOpen.current) triggerRef.current?.focus?.()
         wasOpen.current = open
-    }, [open, isStatic])
+    }, [open])
 
     const overlayRef = useRef<HTMLDivElement | null>(null)
 
     // Relocate the overlay to <body>, escaping the transformed ancestor.
     // Cleanup returns it so React unmounts it from the parent it expects.
     useEffect(() => {
-        if (isStatic || typeof document === "undefined") return
+        if (onCanvas || typeof document === "undefined") return
         const el = overlayRef.current
         if (!el) return
         const home = el.parentElement
@@ -206,7 +208,7 @@ export default function MobileNav(props: Props) {
         return () => {
             if (home && el.parentElement !== home) home.appendChild(el)
         }
-    }, [isStatic])
+    }, [onCanvas])
 
     const close = useCallback(() => setOpen(false), [])
 
@@ -278,7 +280,22 @@ export default function MobileNav(props: Props) {
                 }}
             />
 
-            {eyebrow ? (
+            {/* Header row: label on the left, close on the right.
+                The navbar trigger also turns into an X, but it sits inside the
+                page's stacking context while this panel is mounted on <body>,
+                so on a phone the trigger is painted underneath the panel and
+                cannot be reached once open. The panel needs its own close. */}
+            <div
+                style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: 12,
+                    marginBottom: 36,
+                    opacity: shown ? 1 : 0,
+                    transition: reduced ? "none" : `opacity 300ms ${EASE} 120ms`,
+                }}
+            >
                 <span
                     style={{
                         fontFamily: MONO,
@@ -286,14 +303,51 @@ export default function MobileNav(props: Props) {
                         letterSpacing: "0.14em",
                         textTransform: "uppercase",
                         color: muted,
-                        marginBottom: 36,
-                        opacity: shown ? 1 : 0,
-                        transition: reduced ? "none" : `opacity 300ms ${EASE} 120ms`,
                     }}
                 >
                     {eyebrow}
                 </span>
-            ) : null}
+
+                <button
+                    onClick={close}
+                    aria-label="Close menu"
+                    style={{
+                        position: "relative",
+                        width: 44,
+                        height: 44,
+                        marginRight: -10,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        background: "transparent",
+                        border: "none",
+                        cursor: "pointer",
+                        padding: 0,
+                        flexShrink: 0,
+                    }}
+                >
+                    <span
+                        style={{
+                            position: "absolute",
+                            width: 18,
+                            height: 1.5,
+                            borderRadius: 2,
+                            background: text,
+                            transform: "rotate(45deg)",
+                        }}
+                    />
+                    <span
+                        style={{
+                            position: "absolute",
+                            width: 18,
+                            height: 1.5,
+                            borderRadius: 2,
+                            background: text,
+                            transform: "rotate(-45deg)",
+                        }}
+                    />
+                </button>
+            </div>
 
             <nav style={{ display: "flex", flexDirection: "column", flex: "1 1 auto" }}>
                 {items.map((item, i) => (

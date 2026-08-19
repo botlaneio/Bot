@@ -91,13 +91,20 @@ Payment links are **card-only**, because dynamic payment methods are not
 configured for USD on the account. Enabling them and recreating the links is a
 real improvement.
 
-**Supabase** — project `BotLane`, ref **`nekribxexmpmpzefcpvn`**, `us-east-1`,
-org `sbeeayorpmyiybkyrqtv` (the **botlaneio** account).
+**Supabase** — project ref **`btjusdaleigmnvpvdxgj`**, `ap-southeast-1`, org
+`sbeeayorpmyiybkyrqtv` (**BotLane LLC**).
+API URL `https://btjusdaleigmnvpvdxgj.supabase.co`.
 
-> **There are two Supabase accounts.** Three abandoned projects exist across
-> them — see `CLAUDE.md` §5. Before touching Supabase, check that the dashboard,
-> the CLI and the Claude connector all point at `nekribxexmpmpzefcpvn`. They
-> have disagreed before and it cost hours.
+> **Corrected 2026-08-19.** This said `nekribxexmpmpzefcpvn`, `us-east-1`. That
+> ref is not a Supabase project at all — public DNS returns NXDOMAIN for it —
+> and it had also been copied into `CLAUDE.md`, `README.md`,
+> `.github/workflows/ingest.yml`, `pipeline/store.py` and `framer/Account.tsx`,
+> where it silently broke the live account area. All are corrected.
+>
+> Before touching Supabase, confirm the ref against the dashboard. Note that
+> passing a wrong `project_id` to the Claude connector can still return data
+> from whatever project it is actually pointed at, so **a query succeeding does
+> not prove the ref is real.** Check that `<ref>.supabase.co` resolves.
 
 **Webhook** — `stripe-webhook` Edge Function, secrets set, Stripe destination
 `we_1U56I0I9ZXWhlDEDBNinekNm` subscribed to seven events. Verified working by
@@ -202,51 +209,101 @@ Uncommitted work: none. Everything through this session is pushed.
 ## Addendum, 2026-08-18 — the ingestion pipeline is live, and needs one secret to finish
 
 Q1 and Q2 are settled and built (`decisions.md` 2026-08-18,
-[pipeline/README.md](../pipeline/README.md)). Four migrations applied to the
-live project, the poller is written, and the first real poll is in the database:
-**8 boards, 41 postings, 34 already open 60+ days.**
+[pipeline/README.md](../pipeline/README.md)). Four migrations applied, the
+poller is written, and the watchlist is loaded.
+
+> **Superseded 2026-08-19 — read the addendum below before acting on this
+> section.** The database moved, and steps 1 and 2 are already done.
 
 ### Three steps to hand over, in order
 
-**1. Put the service_role key where the poller can find it.** Supabase →
-project `BotLane` (`nekribxexmpmpzefcpvn`, botlaneio account) → Project Settings
-→ API Keys → `service_role`. Add to `Bot/.env.local.txt`, which is gitignored:
+**1. ~~Put the service_role key where the poller can find it.~~ Done.**
+`Bot/.env.local.txt` (gitignored) now carries `SUPABASE_URL` and
+`SUPABASE_SERVICE_ROLE_KEY` for `btjusdaleigmnvpvdxgj`. The key bypasses RLS —
+never print it, never commit it.
 
-```
-SUPABASE_URL=https://nekribxexmpmpzefcpvn.supabase.co
-SUPABASE_SERVICE_ROLE_KEY=<the service_role key>
-```
+**2. ~~Finish the watchlist.~~ Done.** 26 companies, 30 boards, 892 postings.
 
-Nothing in this repository has ever held that key, and no session has seen it.
-It bypasses RLS — never print it, never commit it.
+**3. Start the clock properly — STILL OUTSTANDING.** Add the same two values as
+GitHub repository secrets (Settings → Secrets and variables → Actions), then run
+`.github/workflows/ingest.yml` once by hand (Actions → Daily ATS ingest → Run
+workflow) to confirm it works before trusting the 13:17 UTC schedule. **Until
+this is done there is no clock** — every poll so far has been run by hand.
 
-**2. Finish the watchlist.** 98 boards were discovered across 86 companies; 8
-are in. The rest go in with one command, which is also the end-to-end proof that
-the HTTP write path works:
+### What is verified and what is not
+
+**Verified:** the schema, the ingest function, and the lifecycle rules — six
+assertions in `pipeline/tests/lifecycle_test.sql`, including "a failed fetch
+closes nothing". The fetch and normalise path for all three ATS platforms,
+against live boards.
+
+**`pipeline/store.py`'s HTTP path is now verified** (2026-08-19). The RPC call
+over PostgREST with the service_role key wrote all 30 boards; the grant and the
+payload are both correct. It was unproven at the time this addendum was first
+written.
+
+---
+
+## Addendum, 2026-08-19 — the database moved, and the clock restarted
+
+**The project ref recorded everywhere was not a real project.** See the Supabase
+note above. The pipeline and account-area schemas were rebuilt from
+`supabase/migrations/` on `btjusdaleigmnvpvdxgj`, which until today was listed in
+`CLAUDE.md` as an unused Singapore project. It still carries an unrelated Prisma
+schema from an earlier app; those tables are untouched.
+
+**The history clock restarted at day 1.** The 18–19 August series (8 boards, 41
+postings) was written to a different database and was not migrated. Ages in
+`stale_openings` are unaffected — they come from ATS publish dates, not from our
+observations — but repost and withdrawal detection needs a continuous series
+from 2026-08-19 onward, and there is no continuous series until step 3 is done.
+
+**Current state:** 26 companies, 30 boards, 892 postings, **474 open 60+ days**,
+and zero postings where `days_open_is_observed` is true — so every one of those
+474 carries the employer's own date and can be quoted.
+
+**The watchlist is the 23-company pre-sale sample, not the full seed.**
+`pipeline/watchlist_seed.txt` holds 148 candidate slugs and has not been run.
+Widening the watchlist is one command, and it is the obvious next expansion once
+the schedule is trustworthy:
 
 ```bash
 python -m pipeline.discover --slugs-file pipeline/watchlist_seed.txt --max-open-roles 120
 ```
 
-**3. Start the clock properly.** Add the same two values as GitHub repository
-secrets (Settings → Secrets and variables → Actions), then run
-`.github/workflows/ingest.yml` once by hand (Actions → Daily ATS ingest → Run
-workflow) to confirm it works before trusting the 13:17 UTC schedule.
+**The Stripe webhook was pointed at a host that does not exist, and is now
+fixed except for its secrets.** On 2026-08-19 the account's only endpoint,
+`we_1U56I0I9ZXWhlDEDBNinekNm`, was `enabled` with the URL
+`https://nekribxexmpmpzefcpvn.supabase.co/functions/v1/stripe-webhook`, so every
+delivery failed at DNS and no function was deployed on the live project at all.
+**Nothing was lost** — the account has exactly one checkout session ever and it
+expired unpaid. (`decisions.md` 2026-08-16 records this endpoint as verified
+working; it cannot have been. That entry stands as the dated record it is.)
 
-### What is verified and what is not
+Done since: `stripe-webhook` deployed to `btjusdaleigmnvpvdxgj` (`verify_jwt`
+false — Stripe cannot present a Supabase JWT and the function verifies its own
+signature), and the Stripe endpoint URL repointed at it. The endpoint id is
+unchanged, so **the signing secret is unchanged too** — the
+`STRIPE_WEBHOOK_SECRET` already in `Bot/.env.local.txt` is still the right value.
 
-**Verified:** the schema, the ingest function, and the lifecycle rules — six
-assertions in `pipeline/tests/lifecycle_test.sql`, run against the live project,
-including "a failed fetch closes nothing". The fetch and normalise path for all
-three ATS platforms, against live boards. The first poll, whose rows are in the
-database now.
+**Outstanding:** set `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET` on the
+function (Supabase → Edge Functions → stripe-webhook → Secrets).
+`SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are injected by the platform and
+need nothing. Until the two Stripe secrets are set the function answers 500
+`not_configured` and names exactly what is missing:
 
-**Not verified:** `pipeline/store.py`'s HTTP path — the RPC call over PostgREST
-with the service_role key. It could not be exercised without the key, so the
-first tranche was written through the database connector instead
-(`pipeline/replay.sql` is that path, kept deliberately). Step 2 above is what
-proves it. If it fails it will fail loudly on the first board, and the likely
-cause is the grant, not the payload.
+```bash
+curl -s -X POST https://btjusdaleigmnvpvdxgj.supabase.co/functions/v1/stripe-webhook -d '{}'
+```
+
+A `400 Missing Stripe-Signature` from that command means the secrets are in
+place and the function is ready.
+
+The account area was
+republished against the new project (Framer version `532ff1eb7`) but sign-in
+cannot work until the new project's Authentication → URL Configuration →
+Redirect URLs includes the account page, and until `public.customers` has a row —
+the invite gate rejects every address that is not already in it.
 
 ### Do not
 

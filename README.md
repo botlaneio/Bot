@@ -41,11 +41,22 @@ Layout:
 
 ## Getting started
 
-There is nothing to run locally yet — no pipeline, no dependency manifest.
-The Supabase migrations are applied to project `BotLane`
-(`nekribxexmpmpzefcpvn`) and the Edge Function is deployed there. This section
-gets written properly once the pipeline stack is decided and the first pipeline
-code lands.
+The Supabase migrations are applied to project `btjusdaleigmnvpvdxgj`
+(`ap-southeast-1`, org `BotLane LLC`). The `stripe-webhook` Edge Function is
+**not** yet deployed there — it still runs on the retired project
+`tqfyhgzaxaakaewmwamc`.
+
+The poller is stdlib-only Python 3.13, so there is no dependency manifest:
+
+```
+python -m pipeline.discover --slug <slug>   # probe an ATS and register what answers
+python -m pipeline.poll --dry-run           # fetch and report, write nothing
+python -m pipeline.poll                     # the daily run
+```
+
+Both need `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` in `Bot/.env.local.txt`
+(gitignored via `.env.*`), or as environment variables. The scheduled run in
+`.github/workflows/ingest.yml` reads the same two names from repository secrets.
 
 ## Documentation
 

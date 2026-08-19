@@ -70,9 +70,10 @@ def credentials():
             "SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set.\n"
             "  Local: add them to Bot/.env.local.txt (gitignored).\n"
             "  CI:    repository secrets of the same name.\n"
-            "  The service_role key is at Supabase > Project Settings > API "
-            "Keys, on the botlaneio account, project BotLane "
-            "(nekribxexmpmpzefcpvn). It bypasses RLS: never print or commit it.")
+            "  The secret key is at Supabase > Project Settings > API Keys, org "
+            "BotLane LLC, project btjusdaleigmnvpvdxgj (ap-southeast-1).\n"
+            "  SUPABASE_URL is https://btjusdaleigmnvpvdxgj.supabase.co\n"
+            "  It bypasses RLS: never print or commit it.")
     return url, key
 
 

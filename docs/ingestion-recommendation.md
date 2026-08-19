@@ -1,5 +1,13 @@
 # Ingestion and pipeline — draft recommendation (Q1 / Q2)
 
+> **ADOPTED 2026-08-18.** Q1 and Q2 were decided along these lines and the
+> pipeline is built and running — see `decisions.md` (2026-08-18) for what was
+> settled and `pipeline/README.md` for how it works. This document is kept as
+> the reasoning that led there, not as a live proposal; where it and the code
+> disagree, the code wins. Two things it did not decide were decided at build
+> time: the scheduler (GitHub Actions cron) and the repository shape (flat,
+> `pipeline/`). The LLM provider is still open.
+
 **Status: draft, 2026-08-17. A proposal, not a decision.** This is the
 operator's call to make and record in `decisions.md`, at which point the
 matching entries come out of `open-questions.md` and `CLAUDE.md` §3 updates.

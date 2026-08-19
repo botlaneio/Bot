@@ -1,0 +1,69 @@
+# The ingestion clock.
+#
+# Reposts and withdrawals cannot be backfilled: they exist only if something
+# looked at the board yesterday as well as today. So this runs whether or not
+# anyone remembers it, and its failures are visible in the Actions tab rather
+# than in a terminal nobody has open.
+#
+# Requires two repository secrets (Settings -> Secrets and variables -> Actions):
+#
+#   SUPABASE_URL                https://nekribxexmpmpzefcpvn.supabase.co
+#   SUPABASE_SERVICE_ROLE_KEY   service_role key, botlaneio account, project BotLane
+#
+# The service_role key bypasses RLS. It is granted execute on exactly two
+# functions and cannot reach the pipeline tables directly, but it is still a
+# secret: never echo it in a step, never commit it.
+#
+# GitHub's scheduled runs drift and can be skipped entirely under load. For a
+# daily poll that is acceptable — a missed day costs one day of repost
+# resolution, not the whole history — but it is why board_health exists. If
+# drift ever stops being acceptable, this is the file to replace, and nothing
+# else changes: the ingest logic lives in the database.
+
+name: Daily ATS ingest
+
+on:
+  schedule:
+    # 13:17 UTC. Off the hour deliberately: the top of the hour is the most
+    # contended slot on GitHub's scheduler and the most likely to be delayed.
+    - cron: "17 13 * * *"
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: "Poll only the N least-recently-succeeded boards"
+        required: false
+        type: string
+      dry_run:
+        description: "Fetch and report without writing"
+        required: false
+        type: boolean
+        default: false
+
+# Two polls at once would race on the same boards and write duplicate runs.
+concurrency:
+  group: ats-ingest
+  cancel-in-progress: false
+
+jobs:
+  poll:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      # No install step: the poller is stdlib-only, which is a deliberate
+      # constraint. If a dependency ever becomes necessary, it needs a manifest
+      # and a decision recorded, not a quiet `pip install` added here.
+      - name: Poll
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          python -m pipeline.poll \
+            ${{ inputs.limit && format('--limit {0}', inputs.limit) || '' }} \
+            ${{ inputs.dry_run && '--dry-run' || '' }}

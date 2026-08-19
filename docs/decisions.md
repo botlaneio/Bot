@@ -1442,3 +1442,95 @@ attempts; mobile continues to run on the original hamburger. Desktop is correct
 
 **Reproduce:** load `https://botlane.io` at 1280px and at 375px, reloading after
 each resize, and compare `document.querySelector('nav')` button counts.
+
+---
+
+## Q1 and Q2 settled: ATS polling against a watchlist, Python + the existing Postgres — and the clock is running
+
+**Date:** 2026-08-18
+
+The two deliberately-deferred decisions from 2026-08-12 are now made, along the
+lines the draft in `ingestion-recommendation.md` argued.
+
+**Q1 — ingestion.** Poll the public ATS JSON endpoints (Greenhouse, Ashby,
+Lever) against a curated watchlist of companies. Not crawling, not scraping,
+not a vendor feed.
+
+**Q2 — stack.** Python 3.13, stdlib only, writing to the Supabase Postgres
+already chosen for Q3, in its own `pipeline` schema.
+
+**Scheduler — GitHub Actions cron**, daily at 13:17 UTC
+(`.github/workflows/ingest.yml`). Not this machine: the one component that
+cannot be backfilled must not depend on a laptop being awake. GitHub's cron
+drifts and occasionally skips, which is acceptable for a daily poll and is why
+`pipeline.board_health` exists.
+
+**Rules out:** a scraping layer, a second database, and — for now — any
+dependency manifest. The poller is stdlib-only on purpose; adding a library
+needs a manifest and an entry here, not a quiet `pip install` in CI.
+
+### The design decision that everything else follows from
+
+**Absence is a signal, so absence has to be trustworthy.** "Quietly reposted"
+and "posted then withdrawn" are both read from a posting *not* being in today's
+response. So is a 404, a timeout, a renamed board, and a rate limit. Conflating
+them manufactures withdrawal claims, and a withdrawal claim goes in an email to
+a stranger who can check it.
+
+So nothing is ever closed on a run that did not demonstrably succeed, and a
+board that returns an empty list while we hold open postings for it is recorded
+as `empty_unexpected` and changes nothing. Both are visible in
+`pipeline.poll_runs` and `pipeline.board_health`.
+
+The whole diff lives in one Postgres function, `public.ingest_ats_board(jsonb)`,
+called once per board: upsert postings, emit lifecycle events, close what
+vanished — atomically. The Python fetches, renames fields, and reports whether
+the fetch worked. It decides nothing. A poller that crashed halfway through
+would otherwise fabricate withdrawals, and one jsonb payload is callable over
+psql, PostgREST and the MCP connector without any SQL string-building.
+
+### A bug caught before it could lie
+
+The first cut decided "this run did not see that posting" with
+`last_seen_at < now()`. `now()` is *transaction* time, so two polls of one board
+inside a single transaction share an instant and the second closes nothing.
+Daily polls are separate transactions, so this would never have shown up in
+normal operation — it would have shown up the first time a backfill or a retry
+replayed two fetches together, as **silently missing withdrawals rather than an
+error**.
+
+`pipeline/tests/lifecycle_test.sql` caught it before a single real posting was
+ingested. Closure is now decided by run identity (`postings.last_seen_run_id`),
+which has no dependence on the clock. Run `select pipeline._lifecycle_test();`
+after any change to the ingest function: it creates its own company, asserts six
+lifecycle steps including "a failed fetch closes nothing", and deletes itself.
+
+### Board tokens are discovered, and junk slugs are real boards
+
+Discovery probes a candidate slug against all three platforms and stores
+whatever answers. Confirmed again here: of 148 candidates, 86 had a board and
+62 had none, and the Lever/Ashby/Greenhouse split (19/69/16) is nothing like
+what guessing from company names would have produced.
+
+A related trap, hit immediately: the first run of `--slugs-file` split the file
+on whitespace **including its own comment header**, so words like `seed`,
+`company`, `curated` and `its` were probed — and six of them are real ATS boards
+belonging to unrelated companies. They would have joined the watchlist silently
+and polluted the ICP with companies nobody chose. Comments are stripped now.
+The lesson generalises: on this product a wrong company is not noise, it is a
+prospect list a client reads.
+
+### Status
+
+The clock is running. First real poll on 2026-08-18: 8 boards, 41 postings,
+**34 already open 60+ days** and every one of them carrying a provider date, so
+zero rely on our own observation window. Longest infrastructure roles seen:
+Highnote 216 days, Runway 209, Pylon 128, and Knock with three at 106-107 days.
+
+Remaining to finish the watchlist: 90 more discovered boards, which need the
+`service_role` key in the environment — see `handoff.md`.
+
+**Still not built, deliberately:** title drift (needs semantic matching; a false
+positive is a wrong sentence in a client's email), scoring, enrichment (blocked
+on a paid data source, R1), drafting, reporting. Nothing sends before the R2
+compliance decision.

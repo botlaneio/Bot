@@ -4,15 +4,19 @@ Decisions raised and deliberately deferred. Recorded so the reasoning survives
 outside chat history. When one is settled, add it to
 [decisions.md](decisions.md), remove it from here, and update `CLAUDE.md` §3.
 
-Status: Q1 and Q2 remain open. **Q3 was settled 2026-08-16** — see
-`decisions.md`. A **draft recommendation** for Q1 and Q2 now exists at
-[docs/ingestion-recommendation.md](ingestion-recommendation.md) (2026-08-17);
-it is a proposal, not a decision — this file remains the statement of open
-questions until one of them is actually settled.
+Status: **no ingestion question is open any more.** Q1 and Q2 were settled
+2026-08-18 and Q3 on 2026-08-16 — see `decisions.md`, and `pipeline/README.md`
+for what was built. **R1 and R2 are still live risks**, and R2 still blocks
+every send.
+
+Q1 and Q2 are kept below rather than deleted, against the rule in the paragraph
+above, for one reason: they hold the options that were rejected and why. That is
+the part worth having when someone proposes scraping in six months. Read them as
+history — where they and `decisions.md` disagree, `decisions.md` is current.
 
 ---
 
-## Q1 — Ingestion approach
+## Q1 — Ingestion approach — SETTLED 2026-08-18 (Option A: ATS APIs against a watchlist)
 
 **Question:** How do we detect the five hiring signals in
 [vision.md](vision.md) — open 60+ days, quietly reposted, contract or fractional,
@@ -77,7 +81,7 @@ in scope per `decisions.md`.
 
 ---
 
-## Q2 — Pipeline stack
+## Q2 — Pipeline stack — SETTLED 2026-08-18 (Python 3.13 stdlib + the existing Postgres)
 
 **Recommended: Python + Postgres.**
 
